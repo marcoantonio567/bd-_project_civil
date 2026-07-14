@@ -27,9 +27,7 @@
                 {% for grupo in grupos_origem %}
                     <h4 class="titulo-grupo">{{ grupo.categoria }}</h4>
                     {% for grupo_tipo in grupo.tipos %}
-                        {% if not grupo.eh_forma %}
-                            <h5 class="subtitulo-grupo">{{ grupo_tipo.tipo }}</h5>
-                        {% endif %}
+                        <h5 class="subtitulo-grupo">{{ grupo_tipo.tipo }}</h5>
                         {% for grupo_nome in grupo_tipo.nomes %}
                             <div class="cartao">
                                 <label>
@@ -43,8 +41,9 @@
                                             <th></th>
                                             <th>Nome</th>
                                             {% if grupo.eh_forma %}
-                                                <th>Medida</th>
-                                                <th>Comprimento</th>
+                                                <th>Medida (m)</th>
+                                                <th>Comprimento (m)</th>
+                                                <th>Área (m²)</th>
                                             {% else %}
                                                 <th>ID</th>
                                                 <th>QTDE</th>
@@ -67,6 +66,7 @@
                                                 {% if grupo.eh_forma %}
                                                     <td>{{ elemento.medida }}</td>
                                                     <td>{{ elemento.comprimento }}</td>
+                                                    <td>{{ elemento.area|floatformat:2 }}</td>
                                                 {% else %}
                                                     <td>{{ elemento.identificador }}</td>
                                                     <td>{{ elemento.qtde }}</td>

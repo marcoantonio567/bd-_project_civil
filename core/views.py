@@ -48,6 +48,7 @@ def agrupar_elementos(elementos):
                     'qtde': sum(e.qtde for e in itens),
                     'diametros': resumo_por_diametro(itens) if eh_aco else [],
                     'peso_total': sum(e.peso_total for e in itens),
+                    'area_total': sum(e.area for e in itens),
                     'eh_aco': eh_aco,
                     'eh_forma': eh_forma,
                 })
@@ -55,6 +56,7 @@ def agrupar_elementos(elementos):
                 'tipo': tipo,
                 'nomes': nomes,
                 'peso_total': sum(n['peso_total'] for n in nomes),
+                'area_total': sum(n['area_total'] for n in nomes),
             })
         grupos.append({
             'categoria': categoria,
@@ -62,6 +64,7 @@ def agrupar_elementos(elementos):
             'eh_forma': itens_categoria[0].eh_forma,
             'tipos': tipos,
             'peso_total': sum(t['peso_total'] for t in tipos),
+            'area_total': sum(t['area_total'] for t in tipos),
         })
     return grupos
 
@@ -99,7 +102,7 @@ def pavimento_detail(request, pk):
     duplicando = None
     preenchido_automatico = False
     if request.method == 'POST':
-        form = ElementoForm(request.POST)
+        form = ElementoForm(request.POST, pavimento=pavimento)
         if form.is_valid():
             elemento = form.save(commit=False)
             elemento.pavimento = pavimento
@@ -118,16 +121,16 @@ def pavimento_detail(request, pk):
             form = ElementoForm(initial={
                 'categoria': base.categoria,
                 'tipo': base.tipo,
-                'nome': base.nome,
+                'nome': '' if base.eh_forma and not duplicando else base.nome,
                 'medida': base.medida,
                 'identificador': base.identificador,
                 'qtde': base.qtde,
                 'diametro': base.diametro,
                 'comprimento': base.comprimento,
                 'peso_linear': base.peso_linear,
-            })
+            }, pavimento=pavimento)
         else:
-            form = ElementoForm()
+            form = ElementoForm(pavimento=pavimento)
     elementos = sorted(
         pavimento.elementos.all(),
         key=lambda e: (e.categoria, e.tipo, chave_natural(e.nome), chave_natural(e.identificador)),
@@ -138,6 +141,7 @@ def pavimento_detail(request, pk):
         'resumo_diametros': resumo_por_diametro(elementos),
         'tem_elementos': bool(elementos),
         'form': form,
+        'nomes_forma_por_tipo': form.nomes_forma_por_tipo,
         'duplicando': duplicando,
         'preenchido_automatico': preenchido_automatico,
     })
@@ -166,6 +170,14 @@ def grupo_duplicar(request, pk):
             messages.error(request, 'Informe o novo nome para duplicar o grupo.')
         elif not elementos:
             messages.error(request, 'Nenhuma peca encontrada para duplicar.')
+        elif (
+            categoria == Elemento.CATEGORIA_FORMA
+            and pavimento.elementos.filter(
+                categoria=Elemento.CATEGORIA_FORMA,
+                nome__iexact=novo_nome,
+            ).exists()
+        ):
+            messages.error(request, 'Este nome ja existe em Forma.')
         else:
             for elemento in elementos:
                 elemento.pk = None
@@ -191,17 +203,18 @@ def elemento_edit(request, pk, elemento_pk):
     pavimento = get_object_or_404(Pavimento, pk=pk)
     elemento = get_object_or_404(pavimento.elementos, pk=elemento_pk)
     if request.method == 'POST':
-        form = ElementoForm(request.POST, instance=elemento)
+        form = ElementoForm(request.POST, instance=elemento, pavimento=pavimento)
         if form.is_valid():
             form.save()
             messages.success(request, 'Elemento atualizado com sucesso.')
             return redirect('core:pavimento_detail', pk=pavimento.pk)
     else:
-        form = ElementoForm(instance=elemento)
+        form = ElementoForm(instance=elemento, pavimento=pavimento)
     return render(request, 'core/elemento_form.html', {
         'pavimento': pavimento,
         'elemento': elemento,
         'form': form,
+        'nomes_forma_por_tipo': form.nomes_forma_por_tipo,
     })
 
 

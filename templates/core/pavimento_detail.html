@@ -21,14 +21,30 @@
                 <a href="?novo=1#adicionar">Começar em branco</a>
             </div>
         {% endif %}
+        {{ nomes_forma_por_tipo|json_script:"nomes-forma-data" }}
         <form method="post" class="formulario formulario-grade">
             {% csrf_token %}
             {% for field in form %}
-                <p{% if field.name == 'tipo' or field.name == 'identificador' or field.name == 'qtde' %} class="campo-generico"{% elif field.name == 'medida' %} class="campo-forma-apenas"{% elif field.name == 'comprimento' %} class="campo-comprimento"{% elif field.name == 'diametro' or field.name == 'peso_linear' %} class="campo-aco-apenas"{% endif %}>
-                    {{ field.label_tag }}
-                    {{ field }}
-                    {% if field.errors %}<span class="erro">{{ field.errors|striptags }}</span>{% endif %}
-                </p>
+                {% if field.name == 'nome' %}
+                    <p class="campo-nome-livre">
+                        {{ field.label_tag }}
+                        {{ field }}
+                        {% if field.errors %}<span class="erro">{{ field.errors|striptags }}</span>{% endif %}
+                    </p>
+                    <p class="campo-nome-forma">
+                        <label for="id_nome_forma">Nome</label>
+                        <select id="id_nome_forma" name="nome" disabled data-current="{{ field.value|default_if_none:'' }}">
+                            <option value="">Selecione o tipo primeiro...</option>
+                        </select>
+                        {% if field.errors %}<span class="erro">{{ field.errors|striptags }}</span>{% endif %}
+                    </p>
+                {% else %}
+                    <p{% if field.name == 'identificador' or field.name == 'qtde' %} class="campo-generico"{% elif field.name == 'medida' %} class="campo-forma-apenas"{% elif field.name == 'comprimento' %} class="campo-comprimento"{% elif field.name == 'diametro' or field.name == 'peso_linear' %} class="campo-aco-apenas"{% endif %}>
+                        {{ field.label_tag }}
+                        {{ field }}
+                        {% if field.errors %}<span class="erro">{{ field.errors|striptags }}</span>{% endif %}
+                    </p>
+                {% endif %}
             {% endfor %}
             <button type="submit">Adicionar</button>
         </form>
@@ -39,16 +55,15 @@
         {% for grupo in grupos %}
             <h4 class="titulo-grupo">{{ grupo.categoria }}</h4>
             {% for grupo_tipo in grupo.tipos %}
-                {% if not grupo.eh_forma %}
-                    <h5 class="subtitulo-grupo">{{ grupo_tipo.tipo }}</h5>
-                {% endif %}
+                <h5 class="subtitulo-grupo">{{ grupo_tipo.tipo }}</h5>
                 <table>
                     <thead>
                         <tr>
                             <th>Nome</th>
                             {% if grupo.eh_forma %}
-                                <th>Medida</th>
-                                <th>Comprimento</th>
+                                <th>Medida (m)</th>
+                                <th>Comprimento (m)</th>
+                                <th>Área (m²)</th>
                             {% else %}
                                 <th>ID</th>
                                 <th>QTDE</th>
@@ -66,8 +81,8 @@
                     <tbody>
                         {% for grupo_nome in grupo_tipo.nomes %}
                             <tr class="cabecalho-nome">
-                                <td colspan="{% if grupo.eh_aco %}9{% else %}4{% endif %}">
-                                    {{ grupo.categoria }} <strong>{{ grupo_nome.nome }}</strong>
+                                <td colspan="{% if grupo.eh_aco %}9{% elif grupo.eh_forma %}5{% else %}4{% endif %}">
+                                    {{ grupo.categoria }} - {{ grupo_tipo.tipo }} <strong>{{ grupo_nome.nome }}</strong>
                                     - {{ grupo_nome.elementos|length }} peça{{ grupo_nome.elementos|length|pluralize }}
                                 </td>
                             </tr>
@@ -77,6 +92,7 @@
                                     {% if grupo.eh_forma %}
                                         <td>{{ elemento.medida }}</td>
                                         <td>{{ elemento.comprimento }}</td>
+                                        <td>{{ elemento.area|floatformat:2 }}</td>
                                     {% else %}
                                         <td>{{ elemento.identificador }}</td>
                                         <td>{{ elemento.qtde }}</td>
@@ -113,11 +129,16 @@
                                 {% endfor %}
                             {% endif %}
                             <tr class="subtotal">
-                                <td colspan="{% if grupo.eh_aco %}2{% else %}3{% endif %}">Total {{ grupo_nome.nome }}</td>
                                 {% if grupo.eh_aco %}
+                                    <td colspan="2">Total {{ grupo_nome.nome }}</td>
                                     <td>{{ grupo_nome.qtde }}</td>
                                     <td colspan="4"></td>
                                     <td>{{ grupo_nome.peso_total|floatformat:2 }}</td>
+                                {% elif grupo.eh_forma %}
+                                    <td colspan="3">Total {{ grupo_nome.nome }}</td>
+                                    <td>{{ grupo_nome.area_total|floatformat:2 }}</td>
+                                {% else %}
+                                    <td colspan="3">Total {{ grupo_nome.nome }}</td>
                                 {% endif %}
                                 <td class="acoes">
                                     <form method="post" action="{% url 'core:grupo_duplicar' pavimento.pk %}" class="form-duplicar-grupo">
@@ -140,10 +161,30 @@
                                 <th></th>
                             </tr>
                         </tfoot>
+                    {% elif grupo.eh_forma %}
+                        <tfoot>
+                            <tr>
+                                <th colspan="3">Área total {{ grupo.categoria }} - {{ grupo_tipo.tipo }}</th>
+                                <th>{{ grupo_tipo.area_total|floatformat:2 }} m²</th>
+                                <th></th>
+                            </tr>
+                        </tfoot>
                     {% endif %}
                 </table>
             {% endfor %}
         {% endfor %}
+
+        {% if pavimento.area_total_forma %}
+            <h3>Resumo de forma do pavimento</h3>
+            <table class="tabela-resumo">
+                <tfoot>
+                    <tr>
+                        <th>Área total de forma</th>
+                        <th>{{ pavimento.area_total_forma|floatformat:2 }} m²</th>
+                    </tr>
+                </tfoot>
+            </table>
+        {% endif %}
 
         {% if resumo_diametros %}
             <h3>Resumo por diâmetro do pavimento</h3>
@@ -186,7 +227,13 @@
             '10.0': 0.617, '12.5': 0.963, '16.0': 1.578, '20.0': 2.466,
             '25.0': 3.853, '32.0': 6.313, '40.0': 9.865
         };
+        const nomesFormaPorTipo = JSON.parse(document.getElementById('nomes-forma-data').textContent);
         const campoCategoria = document.getElementById('id_categoria');
+        const campoTipo = document.getElementById('id_tipo');
+        const campoNomeLivreGrupo = document.querySelector('.campo-nome-livre');
+        const campoNomeLivre = document.getElementById('id_nome');
+        const campoNomeFormaGrupo = document.querySelector('.campo-nome-forma');
+        const campoNomeForma = document.getElementById('id_nome_forma');
         const camposGenericos = document.querySelectorAll('.campo-generico');
         const camposFormaApenas = document.querySelectorAll('.campo-forma-apenas');
         const camposAcoApenas = document.querySelectorAll('.campo-aco-apenas');
@@ -203,26 +250,57 @@
             });
         }
 
+        function preencherNomesForma() {
+            const tipo = campoTipo ? campoTipo.value : '';
+            const valorAtual = campoNomeForma.dataset.current || campoNomeLivre.value;
+            const nomes = nomesFormaPorTipo[tipo] || [];
+            campoNomeForma.innerHTML = '';
+
+            const opcaoVazia = document.createElement('option');
+            opcaoVazia.value = '';
+            opcaoVazia.textContent = nomes.length ? 'Selecione...' : 'Nenhum nome disponível';
+            campoNomeForma.appendChild(opcaoVazia);
+
+            nomes.forEach(function (nome) {
+                const opcao = document.createElement('option');
+                opcao.value = nome;
+                opcao.textContent = nome;
+                if (nome === valorAtual) {
+                    opcao.selected = true;
+                }
+                campoNomeForma.appendChild(opcao);
+            });
+        }
+
         function atualizarCamposPorCategoria() {
             const categoria = campoCategoria ? campoCategoria.value : 'aco';
-            alternarGrupo(camposGenericos, categoria !== 'forma');
-            alternarGrupo(camposFormaApenas, categoria === 'forma');
+            const ehForma = categoria === 'forma';
+            alternarGrupo([campoNomeLivreGrupo], !ehForma);
+            alternarGrupo([campoNomeFormaGrupo], ehForma);
+            alternarGrupo(camposGenericos, !ehForma);
+            alternarGrupo(camposFormaApenas, ehForma);
             alternarGrupo(camposAcoApenas, categoria === 'aco');
-            alternarGrupo(camposComprimento, categoria === 'aco' || categoria === 'forma');
+            alternarGrupo(camposComprimento, categoria === 'aco' || ehForma);
+            preencherNomesForma();
         }
 
         {% if duplicando %}
-        const campoNome = document.getElementById('id_nome');
-        if (campoNome) {
-            campoNome.focus();
-            campoNome.select();
+        if (campoNomeLivre) {
+            campoNomeLivre.focus();
+            campoNomeLivre.select();
         }
         {% endif %}
 
         if (campoCategoria) {
             campoCategoria.addEventListener('change', atualizarCamposPorCategoria);
-            atualizarCamposPorCategoria();
         }
+        if (campoTipo) {
+            campoTipo.addEventListener('change', function () {
+                campoNomeForma.dataset.current = '';
+                preencherNomesForma();
+            });
+        }
+        atualizarCamposPorCategoria();
 
         if (campoDiametro && campoPesoLinear) {
             campoDiametro.addEventListener('change', function () {

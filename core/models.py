@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.db import models
 
@@ -22,6 +22,10 @@ class Pavimento(models.Model):
     @property
     def total_elementos(self):
         return self.elementos.count()
+
+    @property
+    def area_total_forma(self):
+        return sum((e.area for e in self.elementos.all() if e.eh_forma), Decimal('0'))
 
 
 class Elemento(models.Model):
@@ -71,7 +75,7 @@ class Elemento(models.Model):
     )
     tipo = models.CharField('Tipo', max_length=20, choices=TIPO_CHOICES, blank=True)
     nome = models.CharField('Nome do tipo', max_length=100)
-    medida = models.CharField('Medida', max_length=100, blank=True)
+    medida = models.CharField('Medida (m)', max_length=100, blank=True)
     identificador = models.CharField('ID', max_length=50, blank=True)
     qtde = models.PositiveIntegerField('QTDE', default=1)
     diametro = models.DecimalField(
@@ -122,9 +126,22 @@ class Elemento(models.Model):
 
     @property
     def tipo_rotulo(self):
-        if self.eh_forma:
-            return 'Forma'
-        return self.get_tipo_display()
+        return self.get_tipo_display() if self.tipo else 'Sem tipo'
+
+    @property
+    def medida_decimal(self):
+        if not self.medida:
+            return Decimal('0')
+        try:
+            return Decimal(str(self.medida).replace(',', '.'))
+        except InvalidOperation:
+            return Decimal('0')
+
+    @property
+    def area(self):
+        if self.eh_forma and self.comprimento is not None:
+            return self.medida_decimal * self.comprimento
+        return Decimal('0')
 
     def save(self, *args, **kwargs):
         if self.eh_aco and self.comprimento is not None and self.peso_linear is not None:
@@ -132,7 +149,6 @@ class Elemento(models.Model):
             self.peso_unitario = self.comprimento * self.peso_linear
             self.peso_total = self.qtde * self.peso_unitario
         elif self.eh_forma:
-            self.tipo = ''
             self.identificador = ''
             self.qtde = 1
             self.diametro = None
