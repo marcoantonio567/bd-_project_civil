@@ -1,3 +1,67 @@
-from django.test import TestCase
+from decimal import Decimal
 
-# Create your tests here.
+from django.test import TestCase
+from django.urls import reverse
+
+from .models import Elemento, Pavimento
+
+
+class GrupoDuplicarTests(TestCase):
+    def setUp(self):
+        self.pavimento = Pavimento.objects.create(nome='Terreo')
+        self.base_1 = Elemento.objects.create(
+            pavimento=self.pavimento,
+            categoria=Elemento.CATEGORIA_ACO,
+            tipo=Elemento.TIPO_PILAR,
+            nome='P12',
+            identificador='1',
+            qtde=2,
+            diametro=Decimal('10.0'),
+            comprimento=Decimal('3.50'),
+            peso_linear=Decimal('0.617'),
+        )
+        self.base_2 = Elemento.objects.create(
+            pavimento=self.pavimento,
+            categoria=Elemento.CATEGORIA_ACO,
+            tipo=Elemento.TIPO_PILAR,
+            nome='P12',
+            identificador='2',
+            qtde=4,
+            diametro=Decimal('8.0'),
+            comprimento=Decimal('2.75'),
+            peso_linear=Decimal('0.395'),
+        )
+
+    def post_duplicar(self, nomes):
+        return self.client.post(reverse('core:grupo_duplicar', args=[self.pavimento.pk]), {
+            'categoria': Elemento.CATEGORIA_ACO,
+            'tipo': Elemento.TIPO_PILAR,
+            'nome': 'P12',
+            'novo_nome': nomes,
+        })
+
+    def test_duplica_grupo_para_varios_nomes(self):
+        response = self.post_duplicar('P1, P2, P3')
+
+        self.assertRedirects(response, reverse('core:pavimento_detail', args=[self.pavimento.pk]))
+        for nome in ['P1', 'P2', 'P3']:
+            clones = Elemento.objects.filter(
+                pavimento=self.pavimento,
+                categoria=Elemento.CATEGORIA_ACO,
+                tipo=Elemento.TIPO_PILAR,
+                nome=nome,
+            ).order_by('identificador')
+            self.assertEqual(clones.count(), 2)
+            self.assertEqual(clones[0].identificador, self.base_1.identificador)
+            self.assertEqual(clones[0].qtde, self.base_1.qtde)
+            self.assertEqual(clones[0].diametro, self.base_1.diametro)
+            self.assertEqual(clones[0].comprimento, self.base_1.comprimento)
+            self.assertEqual(clones[0].peso_linear, self.base_1.peso_linear)
+            self.assertEqual(clones[1].identificador, self.base_2.identificador)
+
+    def test_ignora_nomes_vazios_e_repetidos(self):
+        self.post_duplicar('P1, , P1; P2\nP2')
+
+        self.assertEqual(Elemento.objects.filter(nome='P1').count(), 2)
+        self.assertEqual(Elemento.objects.filter(nome='P2').count(), 2)
+        self.assertEqual(Elemento.objects.exclude(nome='P12').count(), 4)

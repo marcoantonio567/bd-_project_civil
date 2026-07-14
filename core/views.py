@@ -69,6 +69,35 @@ def agrupar_elementos(elementos):
     return grupos
 
 
+def nomes_para_duplicar(valor):
+    """Converte "P1, P2" ou nomes em linhas separadas em uma lista sem repeticao."""
+    nomes = []
+    vistos = set()
+    for nome in re.split(r'[,;\r\n]+', valor or ''):
+        nome = nome.strip()
+        if nome and nome not in vistos:
+            nomes.append(nome)
+            vistos.add(nome)
+    return nomes
+
+
+def clonar_elemento(elemento, **alteracoes):
+    campos = {
+        'pavimento': elemento.pavimento,
+        'categoria': elemento.categoria,
+        'tipo': elemento.tipo,
+        'nome': elemento.nome,
+        'medida': elemento.medida,
+        'identificador': elemento.identificador,
+        'qtde': elemento.qtde,
+        'diametro': elemento.diametro,
+        'comprimento': elemento.comprimento,
+        'peso_linear': elemento.peso_linear,
+    }
+    campos.update(alteracoes)
+    return Elemento.objects.create(**campos)
+
+
 def home(request):
     return redirect('core:pavimento_list')
 
@@ -158,26 +187,27 @@ def pavimento_delete(request, pk):
 
 
 def grupo_duplicar(request, pk):
-    """Duplica todas as pecas de uma categoria+tipo+nome com um novo nome."""
+    """Duplica todas as pecas de uma categoria+tipo+nome para um ou mais nomes."""
     pavimento = get_object_or_404(Pavimento, pk=pk)
     if request.method == 'POST':
         categoria = request.POST.get('categoria', Elemento.CATEGORIA_ACO)
         tipo = request.POST.get('tipo', '')
         nome = request.POST.get('nome', '')
-        novo_nome = (request.POST.get('novo_nome') or '').strip()
+        novos_nomes = nomes_para_duplicar(request.POST.get('novo_nome'))
         elementos = list(pavimento.elementos.filter(categoria=categoria, tipo=tipo, nome=nome))
-        if not novo_nome:
-            messages.error(request, 'Informe o novo nome para duplicar o grupo.')
+        if not novos_nomes:
+            messages.error(request, 'Informe ao menos um nome para duplicar o grupo.')
         elif not elementos:
             messages.error(request, 'Nenhuma peca encontrada para duplicar.')
         else:
-            for elemento in elementos:
-                elemento.pk = None
-                elemento.nome = novo_nome
-                elemento.save()
+            for novo_nome in novos_nomes:
+                for elemento in elementos:
+                    clonar_elemento(elemento, nome=novo_nome)
+            total = len(elementos) * len(novos_nomes)
+            nomes_texto = ', '.join(novos_nomes)
             messages.success(
                 request,
-                f'{len(elementos)} peca(s) de "{nome}" duplicada(s) como "{novo_nome}".'
+                f'{total} peca(s) de "{nome}" duplicada(s) como "{nomes_texto}".'
             )
     return redirect('core:pavimento_detail', pk=pavimento.pk)
 
