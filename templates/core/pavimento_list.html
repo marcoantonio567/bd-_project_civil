@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}Pavimentos - Cadastro Civil{% endblock %}
+
+{% block content %}
+    <h2>Pavimentos cadastrados</h2>
+
+    <form method="get" class="busca">
+        <input type="text" name="q" value="{{ busca }}" placeholder="Pesquisar por nome do pavimento...">
+        <button type="submit">Pesquisar</button>
+        {% if busca %}<a href="{% url 'core:pavimento_list' %}" class="botao-secundario">Limpar</a>{% endif %}
+    </form>
+
+    {% if pavimentos %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Elementos</th>
+                    <th>Peso total (kg)</th>
+                    <th>Criado em</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pavimento in pavimentos %}
+                    <tr>
+                        <td><a href="{% url 'core:pavimento_detail' pavimento.pk %}">{{ pavimento.nome }}</a></td>
+                        <td>{{ pavimento.elementos.count }}</td>
+                        <td>{{ pavimento.peso_total_geral|floatformat:2 }}</td>
+                        <td>{{ pavimento.criado_em|date:'d/m/Y H:i' }}</td>
+                        <td>
+                            <a href="{% url 'core:pavimento_detail' pavimento.pk %}">Abrir</a>
+                            <a href="{% url 'core:pavimento_delete' pavimento.pk %}" class="excluir">Excluir</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        {% if busca %}
+            <p>Nenhum pavimento encontrado para "{{ busca }}".</p>
+        {% else %}
+            <p>Nenhum pavimento cadastrado ainda. <a href="{% url 'core:pavimento_create' %}">Cadastre o primeiro</a>.</p>
+        {% endif %}
+    {% endif %}
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block title %}Excluir pavimento - Cadastro Civil{% endblock %}
+
+{% block content %}
+    <h2>Excluir pavimento</h2>
+    <p>Tem certeza que deseja excluir o pavimento <strong>{{ pavimento.nome }}</strong>?
+       Todos os {{ pavimento.elementos.count }} elemento(s) cadastrados nele também serão excluídos.</p>
+
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="perigo">Sim, excluir</button>
+        <a href="{% url 'core:pavimento_list' %}" class="botao-secundario">Cancelar</a>
+    </form>
+{% endblock %}

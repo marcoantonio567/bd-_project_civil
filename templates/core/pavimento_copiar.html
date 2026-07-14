@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block title %}Copiar peças - {{ pavimento.nome }} - Cadastro Civil{% endblock %}
+
+{% block content %}
+    <h2>Copiar peças para "{{ pavimento.nome }}"</h2>
+    <p>Escolha um pavimento de origem, marque as peças desejadas e copie-as para este pavimento. Depois é só editar o que precisar em cada peça copiada.</p>
+
+    <form method="get" class="cartao">
+        <p>
+            <label for="id_origem">Pavimento de origem</label>
+            <select name="origem" id="id_origem" onchange="this.form.submit()">
+                <option value="">Selecione...</option>
+                {% for p in outros_pavimentos %}
+                    <option value="{{ p.pk }}" {% if origem and origem.pk == p.pk %}selected{% endif %}>{{ p.nome }}</option>
+                {% endfor %}
+            </select>
+        </p>
+        <noscript><button type="submit">Ver peças</button></noscript>
+    </form>
+
+    {% if origem %}
+        {% if grupos_origem %}
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="origem" value="{{ origem.pk }}">
+                {% for grupo in grupos_origem %}
+                    <h4 class="titulo-grupo">{{ grupo.categoria }}</h4>
+                    {% for grupo_tipo in grupo.tipos %}
+                        <h5 class="subtitulo-grupo">{{ grupo_tipo.tipo }}</h5>
+                        {% for grupo_nome in grupo_tipo.nomes %}
+                            <div class="cartao">
+                                <label>
+                                    <input type="checkbox" class="marcar-grupo" data-grupo="{{ grupo.categoria }}-{{ grupo_tipo.tipo }}-{{ grupo_nome.nome }}">
+                                    <strong>{{ grupo_nome.nome }}</strong>
+                                    - {{ grupo_nome.elementos|length }} peça{{ grupo_nome.elementos|length|pluralize }}
+                                </label>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th></th>
+                                            <th>ID</th>
+                                            <th>QTDE</th>
+                                            {% if grupo.eh_aco %}
+                                                <th>DIAM (mm)</th>
+                                                <th>L (m)</th>
+                                                <th>Peso linear (kg/m)</th>
+                                            {% endif %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for elemento in grupo_nome.elementos %}
+                                            <tr>
+                                                <td>
+                                                    <input type="checkbox" name="elementos" value="{{ elemento.pk }}"
+                                                           data-grupo-item="{{ grupo.categoria }}-{{ grupo_tipo.tipo }}-{{ grupo_nome.nome }}">
+                                                </td>
+                                                <td>{{ elemento.identificador }}</td>
+                                                <td>{{ elemento.qtde }}</td>
+                                                {% if grupo.eh_aco %}
+                                                    <td>{{ elemento.get_diametro_display }}</td>
+                                                    <td>{{ elemento.comprimento }}</td>
+                                                    <td>{{ elemento.peso_linear }}</td>
+                                                {% endif %}
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% endfor %}
+                    {% endfor %}
+                {% endfor %}
+                <button type="submit" name="copiar" value="1">Copiar peças selecionadas</button>
+            </form>
+        {% else %}
+            <p>O pavimento "{{ origem.nome }}" não possui peças cadastradas.</p>
+        {% endif %}
+    {% endif %}
+
+    <p><a href="{% url 'core:pavimento_detail' pavimento.pk %}">&larr; Voltar para {{ pavimento.nome }}</a></p>
+
+    <script>
+        document.querySelectorAll('.marcar-grupo').forEach(function (master) {
+            master.addEventListener('change', function () {
+                document.querySelectorAll('[data-grupo-item="' + this.dataset.grupo + '"]').forEach(function (cb) {
+                    cb.checked = master.checked;
+                });
+            });
+        });
+    </script>
+{% endblock %}

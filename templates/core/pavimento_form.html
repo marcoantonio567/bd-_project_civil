@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+
+{% block title %}Novo pavimento - Cadastro Civil{% endblock %}
+
+{% block content %}
+    <h2>Novo pavimento</h2>
+
+    <form method="post" class="formulario">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Salvar</button>
+        <a href="{% url 'core:pavimento_list' %}" class="botao-secundario">Cancelar</a>
+    </form>
+{% endblock %}

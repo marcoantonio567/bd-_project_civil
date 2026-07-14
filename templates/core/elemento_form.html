@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Editar elemento - {{ pavimento.nome }} - Cadastro Civil{% endblock %}
+
+{% block content %}
+    <h2>Editar peça - {{ pavimento.nome }}</h2>
+    <p>{{ elemento.get_categoria_display }} - {{ elemento.get_tipo_display }} <strong>{{ elemento.nome }}</strong> ({{ elemento.identificador }})</p>
+
+    <form method="post" class="formulario">
+        {% csrf_token %}
+        {% for field in form %}
+            <p{% if field.name == 'diametro' or field.name == 'comprimento' or field.name == 'peso_linear' %} class="campo-aco"{% endif %}>
+                {{ field.label_tag }}
+                {{ field }}
+                {% if field.errors %}<span class="erro">{{ field.errors|striptags }}</span>{% endif %}
+            </p>
+        {% endfor %}
+        <button type="submit">Salvar alterações</button>
+        <a href="{% url 'core:pavimento_detail' pavimento.pk %}" class="botao-secundario">Cancelar</a>
+    </form>
+
+    <script>
+        const PESOS_LINEARES = {
+            '4.2': 0.109, '5.0': 0.154, '6.3': 0.245, '8.0': 0.395,
+            '10.0': 0.617, '12.5': 0.963, '16.0': 1.578, '20.0': 2.466,
+            '25.0': 3.853, '32.0': 6.313, '40.0': 9.865
+        };
+        const campoCategoria = document.getElementById('id_categoria');
+        const camposAco = document.querySelectorAll('.campo-aco');
+        const campoDiametro = document.getElementById('id_diametro');
+        const campoPesoLinear = document.getElementById('id_peso_linear');
+
+        function atualizarCamposAco() {
+            const exibirAco = !campoCategoria || campoCategoria.value === 'aco';
+            camposAco.forEach(function (grupoCampo) {
+                grupoCampo.hidden = !exibirAco;
+                grupoCampo.querySelectorAll('input, select').forEach(function (campo) {
+                    campo.disabled = !exibirAco;
+                });
+            });
+        }
+
+        if (campoCategoria) {
+            campoCategoria.addEventListener('change', atualizarCamposAco);
+            atualizarCamposAco();
+        }
+
+        if (campoDiametro && campoPesoLinear) {
+            campoDiametro.addEventListener('change', function () {
+                const chave = parseFloat(this.value.replace(',', '.')).toFixed(1);
+                if (PESOS_LINEARES[chave] !== undefined) {
+                    campoPesoLinear.value = PESOS_LINEARES[chave];
+                }
+            });
+        }
+    </script>
+{% endblock %}
