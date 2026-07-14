@@ -1,13 +1,11 @@
-[14/Jul/2026 15:36:45] "GET /pavimentos/ HTTP/1.1" 200 5072
-[14/Jul/2026 15:36:45,786] - Broken pipe from ('127.0.0.1', 61317)
-[14/Jul/2026 15:36:51] "GET /pavimentos/26/ HTTP/1.1" 200 163249
-[14/Jul/2026 15:36:52,227] - Broken pipe from ('127.0.0.1', 61320)
-[14/Jul/2026 15:37:32] "GET /pavimentos/ HTTP/1.1" 200 5072
-[14/Jul/2026 15:37:32] "GET /static/css/style.css HTTP/1.1" 200 4675
+[14/Jul/2026 15:54:12] "GET /pavimentos/26/ HTTP/1.1" 200 168695
+[14/Jul/2026 15:54:12,809] - Broken pipe from ('127.0.0.1', 61844)
+[14/Jul/2026 15:54:26] "GET /pavimentos/ HTTP/1.1" 200 5546
+[14/Jul/2026 15:54:27] "GET /static/css/style.css HTTP/1.1" 200 4675
 Not Found: /favicon.ico
-[14/Jul/2026 15:37:33] "GET /favicon.ico HTTP/1.1" 404 4806
-[14/Jul/2026 15:37:33] "GET /pavimentos/26/ HTTP/1.1" 200 163249
-[14/Jul/2026 15:37:41] "GET /pavimentos/ HTTP/1.1" 200 5072
-[14/Jul/2026 15:37:41] "GET /static/css/style.css HTTP/1.1" 200 4675
+[14/Jul/2026 15:54:27] "GET /favicon.ico HTTP/1.1" 404 4806
+[14/Jul/2026 15:54:27] "GET /pavimentos/26/ HTTP/1.1" 200 168695
+[14/Jul/2026 15:54:50] "GET /pavimentos/ HTTP/1.1" 200 5546
+[14/Jul/2026 15:54:50] "GET /static/css/style.css HTTP/1.1" 200 4675
 Not Found: /favicon.ico
-[14/Jul/2026 15:37:42] "GET /favicon.ico HTTP/1.1" 404 4806
+[14/Jul/2026 15:54:50] "GET /favicon.ico HTTP/1.1" 404 4806

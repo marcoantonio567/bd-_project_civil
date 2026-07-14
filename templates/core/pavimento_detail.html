@@ -11,8 +11,8 @@
         <h3>Adicionar elemento</h3>
         {% if duplicando %}
             <div class="aviso-duplicar">
-                Duplicando <strong>{{ duplicando.get_categoria_display }} - {{ duplicando.get_tipo_display }} {{ duplicando.nome }} ({{ duplicando.identificador }})</strong>
-                - altere o nome (e o que mais precisar) e clique em Adicionar.
+                Duplicando <strong>{{ duplicando.get_categoria_display }} - {{ duplicando.nome }}</strong>
+                - altere o que precisar e clique em Adicionar.
                 <a href="{% url 'core:pavimento_detail' pavimento.pk %}">Cancelar duplicação</a>
             </div>
         {% elif preenchido_automatico %}
@@ -24,7 +24,7 @@
         <form method="post" class="formulario formulario-grade">
             {% csrf_token %}
             {% for field in form %}
-                <p{% if field.name == 'diametro' or field.name == 'comprimento' or field.name == 'peso_linear' %} class="campo-aco"{% endif %}>
+                <p{% if field.name == 'tipo' or field.name == 'identificador' or field.name == 'qtde' %} class="campo-generico"{% elif field.name == 'medida' %} class="campo-forma-apenas"{% elif field.name == 'comprimento' %} class="campo-comprimento"{% elif field.name == 'diametro' or field.name == 'peso_linear' %} class="campo-aco-apenas"{% endif %}>
                     {{ field.label_tag }}
                     {{ field }}
                     {% if field.errors %}<span class="erro">{{ field.errors|striptags }}</span>{% endif %}
@@ -39,13 +39,20 @@
         {% for grupo in grupos %}
             <h4 class="titulo-grupo">{{ grupo.categoria }}</h4>
             {% for grupo_tipo in grupo.tipos %}
-                <h5 class="subtitulo-grupo">{{ grupo_tipo.tipo }}</h5>
+                {% if not grupo.eh_forma %}
+                    <h5 class="subtitulo-grupo">{{ grupo_tipo.tipo }}</h5>
+                {% endif %}
                 <table>
                     <thead>
                         <tr>
                             <th>Nome</th>
-                            <th>ID</th>
-                            <th>QTDE</th>
+                            {% if grupo.eh_forma %}
+                                <th>Medida</th>
+                                <th>Comprimento</th>
+                            {% else %}
+                                <th>ID</th>
+                                <th>QTDE</th>
+                            {% endif %}
                             {% if grupo.eh_aco %}
                                 <th>DIAM (mm)</th>
                                 <th>L (m)</th>
@@ -60,15 +67,20 @@
                         {% for grupo_nome in grupo_tipo.nomes %}
                             <tr class="cabecalho-nome">
                                 <td colspan="{% if grupo.eh_aco %}9{% else %}4{% endif %}">
-                                    {{ grupo.categoria }} - {{ grupo_tipo.tipo }} <strong>{{ grupo_nome.nome }}</strong>
+                                    {{ grupo.categoria }} <strong>{{ grupo_nome.nome }}</strong>
                                     - {{ grupo_nome.elementos|length }} peça{{ grupo_nome.elementos|length|pluralize }}
                                 </td>
                             </tr>
                             {% for elemento in grupo_nome.elementos %}
                                 <tr>
                                     <td>{{ elemento.nome }}</td>
-                                    <td>{{ elemento.identificador }}</td>
-                                    <td>{{ elemento.qtde }}</td>
+                                    {% if grupo.eh_forma %}
+                                        <td>{{ elemento.medida }}</td>
+                                        <td>{{ elemento.comprimento }}</td>
+                                    {% else %}
+                                        <td>{{ elemento.identificador }}</td>
+                                        <td>{{ elemento.qtde }}</td>
+                                    {% endif %}
                                     {% if grupo.eh_aco %}
                                         <td>{{ elemento.get_diametro_display }}</td>
                                         <td>{{ elemento.comprimento }}</td>
@@ -101,9 +113,9 @@
                                 {% endfor %}
                             {% endif %}
                             <tr class="subtotal">
-                                <td colspan="2">Total {{ grupo_nome.nome }}</td>
-                                <td>{{ grupo_nome.qtde }}</td>
+                                <td colspan="{% if grupo.eh_aco %}2{% else %}3{% endif %}">Total {{ grupo_nome.nome }}</td>
                                 {% if grupo.eh_aco %}
+                                    <td>{{ grupo_nome.qtde }}</td>
                                     <td colspan="4"></td>
                                     <td>{{ grupo_nome.peso_total|floatformat:2 }}</td>
                                 {% endif %}
@@ -175,18 +187,28 @@
             '25.0': 3.853, '32.0': 6.313, '40.0': 9.865
         };
         const campoCategoria = document.getElementById('id_categoria');
-        const camposAco = document.querySelectorAll('.campo-aco');
+        const camposGenericos = document.querySelectorAll('.campo-generico');
+        const camposFormaApenas = document.querySelectorAll('.campo-forma-apenas');
+        const camposAcoApenas = document.querySelectorAll('.campo-aco-apenas');
+        const camposComprimento = document.querySelectorAll('.campo-comprimento');
         const campoDiametro = document.getElementById('id_diametro');
         const campoPesoLinear = document.getElementById('id_peso_linear');
 
-        function atualizarCamposAco() {
-            const exibirAco = !campoCategoria || campoCategoria.value === 'aco';
-            camposAco.forEach(function (grupoCampo) {
-                grupoCampo.hidden = !exibirAco;
+        function alternarGrupo(campos, exibir) {
+            campos.forEach(function (grupoCampo) {
+                grupoCampo.hidden = !exibir;
                 grupoCampo.querySelectorAll('input, select').forEach(function (campo) {
-                    campo.disabled = !exibirAco;
+                    campo.disabled = !exibir;
                 });
             });
+        }
+
+        function atualizarCamposPorCategoria() {
+            const categoria = campoCategoria ? campoCategoria.value : 'aco';
+            alternarGrupo(camposGenericos, categoria !== 'forma');
+            alternarGrupo(camposFormaApenas, categoria === 'forma');
+            alternarGrupo(camposAcoApenas, categoria === 'aco');
+            alternarGrupo(camposComprimento, categoria === 'aco' || categoria === 'forma');
         }
 
         {% if duplicando %}
@@ -198,8 +220,8 @@
         {% endif %}
 
         if (campoCategoria) {
-            campoCategoria.addEventListener('change', atualizarCamposAco);
-            atualizarCamposAco();
+            campoCategoria.addEventListener('change', atualizarCamposPorCategoria);
+            atualizarCamposPorCategoria();
         }
 
         if (campoDiametro && campoPesoLinear) {

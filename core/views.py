@@ -36,11 +36,12 @@ def agrupar_elementos(elementos):
     for categoria, itens_categoria in groupby(elementos, key=lambda e: e.get_categoria_display()):
         itens_categoria = list(itens_categoria)
         tipos = []
-        for tipo, itens_tipo in groupby(itens_categoria, key=lambda e: e.get_tipo_display()):
+        for tipo, itens_tipo in groupby(itens_categoria, key=lambda e: e.tipo_rotulo):
             nomes = []
             for nome, itens in groupby(itens_tipo, key=lambda e: e.nome):
                 itens = list(itens)
                 eh_aco = itens[0].eh_aco
+                eh_forma = itens[0].eh_forma
                 nomes.append({
                     'nome': nome,
                     'elementos': itens,
@@ -48,6 +49,7 @@ def agrupar_elementos(elementos):
                     'diametros': resumo_por_diametro(itens) if eh_aco else [],
                     'peso_total': sum(e.peso_total for e in itens),
                     'eh_aco': eh_aco,
+                    'eh_forma': eh_forma,
                 })
             tipos.append({
                 'tipo': tipo,
@@ -57,6 +59,7 @@ def agrupar_elementos(elementos):
         grupos.append({
             'categoria': categoria,
             'eh_aco': itens_categoria[0].eh_aco,
+            'eh_forma': itens_categoria[0].eh_forma,
             'tipos': tipos,
             'peso_total': sum(t['peso_total'] for t in tipos),
         })
@@ -116,6 +119,7 @@ def pavimento_detail(request, pk):
                 'categoria': base.categoria,
                 'tipo': base.tipo,
                 'nome': base.nome,
+                'medida': base.medida,
                 'identificador': base.identificador,
                 'qtde': base.qtde,
                 'diametro': base.diametro,

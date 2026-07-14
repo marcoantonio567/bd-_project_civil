@@ -4,12 +4,12 @@
 
 {% block content %}
     <h2>Editar peça - {{ pavimento.nome }}</h2>
-    <p>{{ elemento.get_categoria_display }} - {{ elemento.get_tipo_display }} <strong>{{ elemento.nome }}</strong> ({{ elemento.identificador }})</p>
+    <p>{{ elemento.get_categoria_display }} - <strong>{{ elemento.nome }}</strong></p>
 
     <form method="post" class="formulario">
         {% csrf_token %}
         {% for field in form %}
-            <p{% if field.name == 'diametro' or field.name == 'comprimento' or field.name == 'peso_linear' %} class="campo-aco"{% endif %}>
+            <p{% if field.name == 'tipo' or field.name == 'identificador' or field.name == 'qtde' %} class="campo-generico"{% elif field.name == 'medida' %} class="campo-forma-apenas"{% elif field.name == 'comprimento' %} class="campo-comprimento"{% elif field.name == 'diametro' or field.name == 'peso_linear' %} class="campo-aco-apenas"{% endif %}>
                 {{ field.label_tag }}
                 {{ field }}
                 {% if field.errors %}<span class="erro">{{ field.errors|striptags }}</span>{% endif %}
@@ -26,23 +26,33 @@
             '25.0': 3.853, '32.0': 6.313, '40.0': 9.865
         };
         const campoCategoria = document.getElementById('id_categoria');
-        const camposAco = document.querySelectorAll('.campo-aco');
+        const camposGenericos = document.querySelectorAll('.campo-generico');
+        const camposFormaApenas = document.querySelectorAll('.campo-forma-apenas');
+        const camposAcoApenas = document.querySelectorAll('.campo-aco-apenas');
+        const camposComprimento = document.querySelectorAll('.campo-comprimento');
         const campoDiametro = document.getElementById('id_diametro');
         const campoPesoLinear = document.getElementById('id_peso_linear');
 
-        function atualizarCamposAco() {
-            const exibirAco = !campoCategoria || campoCategoria.value === 'aco';
-            camposAco.forEach(function (grupoCampo) {
-                grupoCampo.hidden = !exibirAco;
+        function alternarGrupo(campos, exibir) {
+            campos.forEach(function (grupoCampo) {
+                grupoCampo.hidden = !exibir;
                 grupoCampo.querySelectorAll('input, select').forEach(function (campo) {
-                    campo.disabled = !exibirAco;
+                    campo.disabled = !exibir;
                 });
             });
         }
 
+        function atualizarCamposPorCategoria() {
+            const categoria = campoCategoria ? campoCategoria.value : 'aco';
+            alternarGrupo(camposGenericos, categoria !== 'forma');
+            alternarGrupo(camposFormaApenas, categoria === 'forma');
+            alternarGrupo(camposAcoApenas, categoria === 'aco');
+            alternarGrupo(camposComprimento, categoria === 'aco' || categoria === 'forma');
+        }
+
         if (campoCategoria) {
-            campoCategoria.addEventListener('change', atualizarCamposAco);
-            atualizarCamposAco();
+            campoCategoria.addEventListener('change', atualizarCamposPorCategoria);
+            atualizarCamposPorCategoria();
         }
 
         if (campoDiametro && campoPesoLinear) {

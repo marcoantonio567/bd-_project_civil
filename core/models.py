@@ -19,6 +19,10 @@ class Pavimento(models.Model):
     def peso_total_geral(self):
         return sum((e.peso_total for e in self.elementos.all()), Decimal('0'))
 
+    @property
+    def total_elementos(self):
+        return self.elementos.count()
+
 
 class Elemento(models.Model):
     CATEGORIA_ACO = 'aco'
@@ -65,10 +69,11 @@ class Elemento(models.Model):
         choices=CATEGORIA_CHOICES,
         default=CATEGORIA_ACO,
     )
-    tipo = models.CharField('Tipo', max_length=20, choices=TIPO_CHOICES)
+    tipo = models.CharField('Tipo', max_length=20, choices=TIPO_CHOICES, blank=True)
     nome = models.CharField('Nome do tipo', max_length=100)
-    identificador = models.CharField('ID', max_length=50)
-    qtde = models.PositiveIntegerField('QTDE')
+    medida = models.CharField('Medida', max_length=100, blank=True)
+    identificador = models.CharField('ID', max_length=50, blank=True)
+    qtde = models.PositiveIntegerField('QTDE', default=1)
     diametro = models.DecimalField(
         'DIAM (mm)',
         max_digits=5,
@@ -100,17 +105,42 @@ class Elemento(models.Model):
         ordering = ['categoria', 'tipo', 'nome', 'identificador']
 
     def __str__(self):
-        return f'{self.get_categoria_display()} - {self.get_tipo_display()} {self.nome} ({self.identificador})'
+        complemento = f' ({self.identificador})' if self.identificador else ''
+        return f'{self.get_categoria_display()} - {self.nome}{complemento}'
 
     @property
     def eh_aco(self):
         return self.categoria == self.CATEGORIA_ACO
 
+    @property
+    def eh_forma(self):
+        return self.categoria == self.CATEGORIA_FORMA
+
+    @property
+    def eh_concreto(self):
+        return self.categoria == self.CATEGORIA_CONCRETO
+
+    @property
+    def tipo_rotulo(self):
+        if self.eh_forma:
+            return 'Forma'
+        return self.get_tipo_display()
+
     def save(self, *args, **kwargs):
         if self.eh_aco and self.comprimento is not None and self.peso_linear is not None:
+            self.medida = ''
             self.peso_unitario = self.comprimento * self.peso_linear
             self.peso_total = self.qtde * self.peso_unitario
+        elif self.eh_forma:
+            self.tipo = ''
+            self.identificador = ''
+            self.qtde = 1
+            self.diametro = None
+            self.peso_linear = None
+            self.peso_unitario = Decimal('0')
+            self.peso_total = Decimal('0')
         else:
+            self.medida = ''
             self.diametro = None
             self.comprimento = None
             self.peso_linear = None

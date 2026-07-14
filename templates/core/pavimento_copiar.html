@@ -27,7 +27,9 @@
                 {% for grupo in grupos_origem %}
                     <h4 class="titulo-grupo">{{ grupo.categoria }}</h4>
                     {% for grupo_tipo in grupo.tipos %}
-                        <h5 class="subtitulo-grupo">{{ grupo_tipo.tipo }}</h5>
+                        {% if not grupo.eh_forma %}
+                            <h5 class="subtitulo-grupo">{{ grupo_tipo.tipo }}</h5>
+                        {% endif %}
                         {% for grupo_nome in grupo_tipo.nomes %}
                             <div class="cartao">
                                 <label>
@@ -39,8 +41,14 @@
                                     <thead>
                                         <tr>
                                             <th></th>
-                                            <th>ID</th>
-                                            <th>QTDE</th>
+                                            <th>Nome</th>
+                                            {% if grupo.eh_forma %}
+                                                <th>Medida</th>
+                                                <th>Comprimento</th>
+                                            {% else %}
+                                                <th>ID</th>
+                                                <th>QTDE</th>
+                                            {% endif %}
                                             {% if grupo.eh_aco %}
                                                 <th>DIAM (mm)</th>
                                                 <th>L (m)</th>
@@ -55,8 +63,14 @@
                                                     <input type="checkbox" name="elementos" value="{{ elemento.pk }}"
                                                            data-grupo-item="{{ grupo.categoria }}-{{ grupo_tipo.tipo }}-{{ grupo_nome.nome }}">
                                                 </td>
-                                                <td>{{ elemento.identificador }}</td>
-                                                <td>{{ elemento.qtde }}</td>
+                                                <td>{{ elemento.nome }}</td>
+                                                {% if grupo.eh_forma %}
+                                                    <td>{{ elemento.medida }}</td>
+                                                    <td>{{ elemento.comprimento }}</td>
+                                                {% else %}
+                                                    <td>{{ elemento.identificador }}</td>
+                                                    <td>{{ elemento.qtde }}</td>
+                                                {% endif %}
                                                 {% if grupo.eh_aco %}
                                                     <td>{{ elemento.get_diametro_display }}</td>
                                                     <td>{{ elemento.comprimento }}</td>
