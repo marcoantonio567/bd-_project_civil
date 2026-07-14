@@ -121,7 +121,7 @@ def pavimento_detail(request, pk):
             form = ElementoForm(initial={
                 'categoria': base.categoria,
                 'tipo': base.tipo,
-                'nome': '' if base.eh_forma and not duplicando else base.nome,
+                'nome': base.nome,
                 'medida': base.medida,
                 'identificador': base.identificador,
                 'qtde': base.qtde,
@@ -170,14 +170,6 @@ def grupo_duplicar(request, pk):
             messages.error(request, 'Informe o novo nome para duplicar o grupo.')
         elif not elementos:
             messages.error(request, 'Nenhuma peca encontrada para duplicar.')
-        elif (
-            categoria == Elemento.CATEGORIA_FORMA
-            and pavimento.elementos.filter(
-                categoria=Elemento.CATEGORIA_FORMA,
-                nome__iexact=novo_nome,
-            ).exists()
-        ):
-            messages.error(request, 'Este nome ja existe em Forma.')
         else:
             for elemento in elementos:
                 elemento.pk = None

@@ -1,5 +1,5 @@
-[14/Jul/2026 16:15:51] "GET /pavimentos/ HTTP/1.1" 200 5546
-[14/Jul/2026 16:15:51] "GET /static/css/style.css HTTP/1.1" 200 4675
+[14/Jul/2026 16:20:33] "GET /pavimentos/ HTTP/1.1" 200 5546
+[14/Jul/2026 16:20:34] "GET /static/css/style.css HTTP/1.1" 200 4675
 Not Found: /favicon.ico
-[14/Jul/2026 16:15:52] "GET /favicon.ico HTTP/1.1" 404 4806
-[14/Jul/2026 16:15:52] "GET /pavimentos/26/ HTTP/1.1" 200 172643
+[14/Jul/2026 16:20:34] "GET /favicon.ico HTTP/1.1" 404 4806
+[14/Jul/2026 16:20:34] "GET /pavimentos/26/ HTTP/1.1" 200 172643

@@ -53,18 +53,11 @@ class ElementoForm(forms.ModelForm):
         if not self.pavimento:
             return {}
 
-        usados = set(
-            self.pavimento.elementos
-            .filter(categoria=Elemento.CATEGORIA_FORMA)
-            .exclude(pk=self.instance.pk)
-            .values_list('nome', flat=True)
-        )
         nomes = set(
             self.pavimento.elementos
             .exclude(nome='')
             .values_list('nome', flat=True)
         )
-        nomes = {nome for nome in nomes if nome not in usados}
 
         if self.instance.pk and self.instance.eh_forma:
             nomes.add(self.instance.nome)
@@ -113,14 +106,7 @@ class ElementoForm(forms.ModelForm):
             if tipo and nome:
                 nomes_disponiveis = self.nomes_forma_por_tipo.get(tipo, [])
                 if nome not in nomes_disponiveis:
-                    self.add_error('nome', 'Selecione um nome cadastrado que ainda nao foi usado em Forma.')
-
-                repetido = self.pavimento and self.pavimento.elementos.filter(
-                    categoria=Elemento.CATEGORIA_FORMA,
-                    nome__iexact=nome,
-                ).exclude(pk=self.instance.pk).exists()
-                if repetido:
-                    self.add_error('nome', 'Este nome ja foi usado em Forma.')
+                    self.add_error('nome', 'Selecione um nome cadastrado no pavimento.')
 
             cleaned_data['identificador'] = ''
             cleaned_data['qtde'] = 1
