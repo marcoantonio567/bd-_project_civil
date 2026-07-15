@@ -25,6 +25,8 @@ class ElementoForm(forms.ModelForm):
             'tipo',
             'nome',
             'medida',
+            'medida_1',
+            'medida_2',
             'identificador',
             'qtde',
             'diametro',
@@ -44,10 +46,14 @@ class ElementoForm(forms.ModelForm):
             self.fields[nome_campo].widget.attrs['data-campo-generico'] = '1'
         self.fields['medida'].required = False
         self.fields['medida'].widget.attrs['data-campo-forma'] = '1'
+        for nome_campo in ['medida_1', 'medida_2']:
+            self.fields[nome_campo].required = False
+            self.fields[nome_campo].widget.attrs['data-campo-concreto'] = '1'
         for nome_campo in ['diametro', 'comprimento', 'peso_linear']:
             self.fields[nome_campo].required = False
             self.fields[nome_campo].widget.attrs['data-campo-aco'] = '1'
         self.fields['comprimento'].widget.attrs['data-campo-forma'] = '1'
+        self.fields['comprimento'].widget.attrs['data-campo-concreto'] = '1'
 
     def _nomes_forma_por_tipo(self):
         if not self.pavimento:
@@ -100,6 +106,8 @@ class ElementoForm(forms.ModelForm):
                 self.add_error('medida', 'Informe uma medida numerica maior que zero.')
             else:
                 cleaned_data['medida'] = str(medida)
+            cleaned_data['medida_1'] = None
+            cleaned_data['medida_2'] = None
             if cleaned_data.get('comprimento') in [None, ''] or cleaned_data.get('comprimento') <= 0:
                 self.add_error('comprimento', 'Informe um comprimento maior que zero.')
 
@@ -113,11 +121,16 @@ class ElementoForm(forms.ModelForm):
             cleaned_data['diametro'] = None
             cleaned_data['peso_linear'] = None
         else:
-            for nome_campo in ['tipo', 'identificador', 'qtde']:
+            for nome_campo in ['tipo']:
                 if cleaned_data.get(nome_campo) in [None, '']:
                     self.add_error(nome_campo, 'Este campo e obrigatorio para Concreto.')
+            for nome_campo in ['medida_1', 'medida_2', 'comprimento']:
+                if cleaned_data.get(nome_campo) in [None, ''] or cleaned_data.get(nome_campo) <= 0:
+                    self.add_error(nome_campo, 'Informe uma medida maior que zero.')
             cleaned_data['medida'] = ''
-            for nome_campo in campos_aco:
+            cleaned_data['identificador'] = ''
+            cleaned_data['qtde'] = 1
+            for nome_campo in ['diametro', 'peso_linear']:
                 cleaned_data[nome_campo] = None
 
         return cleaned_data

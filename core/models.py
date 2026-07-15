@@ -27,6 +27,10 @@ class Pavimento(models.Model):
     def area_total_forma(self):
         return sum((e.area for e in self.elementos.all() if e.eh_forma), Decimal('0'))
 
+    @property
+    def volume_total_concreto(self):
+        return sum((e.volume for e in self.elementos.all() if e.eh_concreto), Decimal('0'))
+
 
 class Elemento(models.Model):
     CATEGORIA_ACO = 'aco'
@@ -76,6 +80,8 @@ class Elemento(models.Model):
     tipo = models.CharField('Tipo', max_length=20, choices=TIPO_CHOICES, blank=True)
     nome = models.CharField('Nome do tipo', max_length=100)
     medida = models.CharField('Medida (m)', max_length=100, blank=True)
+    medida_1 = models.DecimalField('Medida 1 (m)', max_digits=8, decimal_places=2, null=True, blank=True)
+    medida_2 = models.DecimalField('Medida 2 (m)', max_digits=8, decimal_places=2, null=True, blank=True)
     identificador = models.CharField('ID', max_length=50, blank=True)
     qtde = models.PositiveIntegerField('QTDE', default=1)
     diametro = models.DecimalField(
@@ -97,6 +103,13 @@ class Elemento(models.Model):
     )
     peso_unitario = models.DecimalField(
         'Peso unit. PC (kg)',
+        max_digits=12,
+        decimal_places=3,
+        default=Decimal('0'),
+        editable=False,
+    )
+    volume = models.DecimalField(
+        'Volume (m³)',
         max_digits=12,
         decimal_places=3,
         default=Decimal('0'),
@@ -143,23 +156,42 @@ class Elemento(models.Model):
             return self.medida_decimal * self.comprimento
         return Decimal('0')
 
+    @property
+    def volume_calculado(self):
+        if (
+            self.eh_concreto
+            and self.medida_1 is not None
+            and self.medida_2 is not None
+            and self.comprimento is not None
+        ):
+            return self.medida_1 * self.medida_2 * self.comprimento
+        return Decimal('0')
+
     def save(self, *args, **kwargs):
         if self.eh_aco and self.comprimento is not None and self.peso_linear is not None:
             self.medida = ''
+            self.medida_1 = None
+            self.medida_2 = None
+            self.volume = Decimal('0')
             self.peso_unitario = self.comprimento * self.peso_linear
             self.peso_total = self.qtde * self.peso_unitario
         elif self.eh_forma:
             self.identificador = ''
             self.qtde = 1
             self.diametro = None
+            self.medida_1 = None
+            self.medida_2 = None
             self.peso_linear = None
             self.peso_unitario = Decimal('0')
             self.peso_total = Decimal('0')
+            self.volume = Decimal('0')
         else:
             self.medida = ''
+            self.identificador = ''
+            self.qtde = 1
             self.diametro = None
-            self.comprimento = None
             self.peso_linear = None
             self.peso_unitario = Decimal('0')
             self.peso_total = Decimal('0')
+            self.volume = self.volume_calculado
         super().save(*args, **kwargs)

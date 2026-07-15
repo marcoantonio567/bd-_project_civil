@@ -65,3 +65,26 @@ class GrupoDuplicarTests(TestCase):
         self.assertEqual(Elemento.objects.filter(nome='P1').count(), 2)
         self.assertEqual(Elemento.objects.filter(nome='P2').count(), 2)
         self.assertEqual(Elemento.objects.exclude(nome='P12').count(), 4)
+
+
+class ElementoConcretoTests(TestCase):
+    def test_calcula_volume_do_concreto_automaticamente(self):
+        pavimento = Pavimento.objects.create(nome='Terreo')
+
+        elemento = Elemento.objects.create(
+            pavimento=pavimento,
+            categoria=Elemento.CATEGORIA_CONCRETO,
+            tipo=Elemento.TIPO_PILAR,
+            nome='P1',
+            medida_1=Decimal('0.20'),
+            medida_2=Decimal('0.30'),
+            comprimento=Decimal('3.00'),
+            identificador='1',
+            qtde=5,
+        )
+
+        self.assertEqual(elemento.volume, Decimal('0.180'))
+        self.assertEqual(elemento.identificador, '')
+        self.assertEqual(elemento.qtde, 1)
+        self.assertIsNone(elemento.diametro)
+        self.assertIsNone(elemento.peso_linear)

@@ -24,7 +24,7 @@
                     {% if field.errors %}<span class="erro">{{ field.errors|striptags }}</span>{% endif %}
                 </p>
             {% else %}
-                <p{% if field.name == 'identificador' or field.name == 'qtde' %} class="campo-generico"{% elif field.name == 'medida' %} class="campo-forma-apenas"{% elif field.name == 'comprimento' %} class="campo-comprimento"{% elif field.name == 'diametro' or field.name == 'peso_linear' %} class="campo-aco-apenas"{% endif %}>
+                <p{% if field.name == 'identificador' or field.name == 'qtde' %} class="campo-generico"{% elif field.name == 'medida' %} class="campo-forma-apenas"{% elif field.name == 'medida_1' or field.name == 'medida_2' %} class="campo-concreto-apenas"{% elif field.name == 'comprimento' %} class="campo-comprimento"{% elif field.name == 'diametro' or field.name == 'peso_linear' %} class="campo-aco-apenas"{% endif %}>
                     {{ field.label_tag }}
                     {{ field }}
                     {% if field.errors %}<span class="erro">{{ field.errors|striptags }}</span>{% endif %}
@@ -50,6 +50,7 @@
         const campoNomeForma = document.getElementById('id_nome_forma');
         const camposGenericos = document.querySelectorAll('.campo-generico');
         const camposFormaApenas = document.querySelectorAll('.campo-forma-apenas');
+        const camposConcretoApenas = document.querySelectorAll('.campo-concreto-apenas');
         const camposAcoApenas = document.querySelectorAll('.campo-aco-apenas');
         const camposComprimento = document.querySelectorAll('.campo-comprimento');
         const campoDiametro = document.getElementById('id_diametro');
@@ -89,12 +90,14 @@
         function atualizarCamposPorCategoria() {
             const categoria = campoCategoria ? campoCategoria.value : 'aco';
             const ehForma = categoria === 'forma';
+            const ehConcreto = categoria === 'concreto';
             alternarGrupo([campoNomeLivreGrupo], !ehForma);
             alternarGrupo([campoNomeFormaGrupo], ehForma);
-            alternarGrupo(camposGenericos, !ehForma);
+            alternarGrupo(camposGenericos, categoria === 'aco');
             alternarGrupo(camposFormaApenas, ehForma);
+            alternarGrupo(camposConcretoApenas, ehConcreto);
             alternarGrupo(camposAcoApenas, categoria === 'aco');
-            alternarGrupo(camposComprimento, categoria === 'aco' || ehForma);
+            alternarGrupo(camposComprimento, categoria === 'aco' || ehForma || ehConcreto);
             preencherNomesForma();
         }
 

@@ -17,7 +17,8 @@ class PavimentoAdmin(admin.ModelAdmin):
 
 @admin.register(Elemento)
 class ElementoAdmin(admin.ModelAdmin):
-    list_display = ['pavimento', 'categoria', 'tipo', 'nome', 'medida', 'identificador', 'qtde',
-                    'diametro', 'comprimento', 'peso_linear', 'peso_unitario', 'peso_total']
+    list_display = ['pavimento', 'categoria', 'tipo', 'nome', 'medida', 'medida_1', 'medida_2',
+                    'identificador', 'qtde', 'diametro', 'comprimento', 'peso_linear',
+                    'peso_unitario', 'peso_total', 'volume']
     list_filter = ['categoria', 'tipo', 'pavimento']
     search_fields = ['nome', 'medida', 'identificador']

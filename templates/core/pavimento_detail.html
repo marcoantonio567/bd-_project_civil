@@ -39,7 +39,7 @@
                         {% if field.errors %}<span class="erro">{{ field.errors|striptags }}</span>{% endif %}
                     </p>
                 {% else %}
-                    <p{% if field.name == 'identificador' or field.name == 'qtde' %} class="campo-generico"{% elif field.name == 'medida' %} class="campo-forma-apenas"{% elif field.name == 'comprimento' %} class="campo-comprimento"{% elif field.name == 'diametro' or field.name == 'peso_linear' %} class="campo-aco-apenas"{% endif %}>
+                    <p{% if field.name == 'identificador' or field.name == 'qtde' %} class="campo-generico"{% elif field.name == 'medida' %} class="campo-forma-apenas"{% elif field.name == 'medida_1' or field.name == 'medida_2' %} class="campo-concreto-apenas"{% elif field.name == 'comprimento' %} class="campo-comprimento"{% elif field.name == 'diametro' or field.name == 'peso_linear' %} class="campo-aco-apenas"{% endif %}>
                         {{ field.label_tag }}
                         {{ field }}
                         {% if field.errors %}<span class="erro">{{ field.errors|striptags }}</span>{% endif %}
@@ -64,9 +64,14 @@
                                 <th>Medida (m)</th>
                                 <th>Comprimento (m)</th>
                                 <th>Área (m²)</th>
-                            {% else %}
+                            {% elif grupo.eh_aco %}
                                 <th>ID</th>
                                 <th>QTDE</th>
+                            {% else %}
+                                <th>Medida 1 (m)</th>
+                                <th>Medida 2 (m)</th>
+                                <th>Comprimento (m)</th>
+                                <th>Volume (m³)</th>
                             {% endif %}
                             {% if grupo.eh_aco %}
                                 <th>DIAM (mm)</th>
@@ -81,7 +86,7 @@
                     <tbody>
                         {% for grupo_nome in grupo_tipo.nomes %}
                             <tr class="cabecalho-nome">
-                                <td colspan="{% if grupo.eh_aco %}9{% elif grupo.eh_forma %}5{% else %}4{% endif %}">
+                                <td colspan="{% if grupo.eh_aco %}9{% elif grupo.eh_forma %}5{% else %}6{% endif %}">
                                     {{ grupo.categoria }} - {{ grupo_tipo.tipo }} <strong>{{ grupo_nome.nome }}</strong>
                                     - {{ grupo_nome.elementos|length }} peça{{ grupo_nome.elementos|length|pluralize }}
                                 </td>
@@ -93,9 +98,14 @@
                                         <td>{{ elemento.medida }}</td>
                                         <td>{{ elemento.comprimento }}</td>
                                         <td>{{ elemento.area|floatformat:2 }}</td>
-                                    {% else %}
+                                    {% elif grupo.eh_aco %}
                                         <td>{{ elemento.identificador }}</td>
                                         <td>{{ elemento.qtde }}</td>
+                                    {% else %}
+                                        <td>{{ elemento.medida_1 }}</td>
+                                        <td>{{ elemento.medida_2 }}</td>
+                                        <td>{{ elemento.comprimento }}</td>
+                                        <td>{{ elemento.volume|floatformat:3 }}</td>
                                     {% endif %}
                                     {% if grupo.eh_aco %}
                                         <td>{{ elemento.get_diametro_display }}</td>
@@ -138,7 +148,8 @@
                                     <td colspan="3">Total {{ grupo_nome.nome }}</td>
                                     <td>{{ grupo_nome.area_total|floatformat:2 }}</td>
                                 {% else %}
-                                    <td colspan="3">Total {{ grupo_nome.nome }}</td>
+                                    <td colspan="4">Total {{ grupo_nome.nome }}</td>
+                                    <td>{{ grupo_nome.volume_total|floatformat:3 }}</td>
                                 {% endif %}
                                 <td class="acoes">
                                     <form method="post" action="{% url 'core:grupo_duplicar' pavimento.pk %}" class="form-duplicar-grupo">
@@ -169,10 +180,30 @@
                                 <th></th>
                             </tr>
                         </tfoot>
+                    {% elif grupo.eh_concreto %}
+                        <tfoot>
+                            <tr>
+                                <th colspan="4">Volume total {{ grupo.categoria }} - {{ grupo_tipo.tipo }}</th>
+                                <th>{{ grupo_tipo.volume_total|floatformat:3 }} m³</th>
+                                <th></th>
+                            </tr>
+                        </tfoot>
                     {% endif %}
                 </table>
             {% endfor %}
         {% endfor %}
+
+        {% if pavimento.volume_total_concreto %}
+            <h3>Resumo de concreto do pavimento</h3>
+            <table class="tabela-resumo">
+                <tfoot>
+                    <tr>
+                        <th>Volume total de concreto</th>
+                        <th>{{ pavimento.volume_total_concreto|floatformat:3 }} m³</th>
+                    </tr>
+                </tfoot>
+            </table>
+        {% endif %}
 
         {% if pavimento.area_total_forma %}
             <h3>Resumo de forma do pavimento</h3>
@@ -236,6 +267,7 @@
         const campoNomeForma = document.getElementById('id_nome_forma');
         const camposGenericos = document.querySelectorAll('.campo-generico');
         const camposFormaApenas = document.querySelectorAll('.campo-forma-apenas');
+        const camposConcretoApenas = document.querySelectorAll('.campo-concreto-apenas');
         const camposAcoApenas = document.querySelectorAll('.campo-aco-apenas');
         const camposComprimento = document.querySelectorAll('.campo-comprimento');
         const campoDiametro = document.getElementById('id_diametro');
@@ -275,12 +307,14 @@
         function atualizarCamposPorCategoria() {
             const categoria = campoCategoria ? campoCategoria.value : 'aco';
             const ehForma = categoria === 'forma';
+            const ehConcreto = categoria === 'concreto';
             alternarGrupo([campoNomeLivreGrupo], !ehForma);
             alternarGrupo([campoNomeFormaGrupo], ehForma);
-            alternarGrupo(camposGenericos, !ehForma);
+            alternarGrupo(camposGenericos, categoria === 'aco');
             alternarGrupo(camposFormaApenas, ehForma);
+            alternarGrupo(camposConcretoApenas, ehConcreto);
             alternarGrupo(camposAcoApenas, categoria === 'aco');
-            alternarGrupo(camposComprimento, categoria === 'aco' || ehForma);
+            alternarGrupo(camposComprimento, categoria === 'aco' || ehForma || ehConcreto);
             preencherNomesForma();
         }
 

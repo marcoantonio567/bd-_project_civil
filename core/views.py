@@ -49,6 +49,7 @@ def agrupar_elementos(elementos):
                     'diametros': resumo_por_diametro(itens) if eh_aco else [],
                     'peso_total': sum(e.peso_total for e in itens),
                     'area_total': sum(e.area for e in itens),
+                    'volume_total': sum(e.volume for e in itens),
                     'eh_aco': eh_aco,
                     'eh_forma': eh_forma,
                 })
@@ -57,14 +58,17 @@ def agrupar_elementos(elementos):
                 'nomes': nomes,
                 'peso_total': sum(n['peso_total'] for n in nomes),
                 'area_total': sum(n['area_total'] for n in nomes),
+                'volume_total': sum(n['volume_total'] for n in nomes),
             })
         grupos.append({
             'categoria': categoria,
             'eh_aco': itens_categoria[0].eh_aco,
             'eh_forma': itens_categoria[0].eh_forma,
+            'eh_concreto': itens_categoria[0].eh_concreto,
             'tipos': tipos,
             'peso_total': sum(t['peso_total'] for t in tipos),
             'area_total': sum(t['area_total'] for t in tipos),
+            'volume_total': sum(t['volume_total'] for t in tipos),
         })
     return grupos
 
@@ -88,6 +92,8 @@ def clonar_elemento(elemento, **alteracoes):
         'tipo': elemento.tipo,
         'nome': elemento.nome,
         'medida': elemento.medida,
+        'medida_1': elemento.medida_1,
+        'medida_2': elemento.medida_2,
         'identificador': elemento.identificador,
         'qtde': elemento.qtde,
         'diametro': elemento.diametro,
@@ -152,6 +158,8 @@ def pavimento_detail(request, pk):
                 'tipo': base.tipo,
                 'nome': base.nome,
                 'medida': base.medida,
+                'medida_1': base.medida_1,
+                'medida_2': base.medida_2,
                 'identificador': base.identificador,
                 'qtde': base.qtde,
                 'diametro': base.diametro,
