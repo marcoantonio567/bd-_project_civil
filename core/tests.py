@@ -148,6 +148,28 @@ class RelatorioResumoAcoTests(TestCase):
             comprimento=Decimal('3.00'),
             peso_linear=Decimal('1.000'),
         )
+        self.pilar_2 = Elemento.objects.create(
+            pavimento=self.terreo,
+            categoria=Elemento.CATEGORIA_ACO,
+            tipo=Elemento.TIPO_PILAR,
+            nome='P1',
+            identificador='2',
+            qtde=1,
+            diametro=Decimal('8.0'),
+            comprimento=Decimal('3.00'),
+            peso_linear=Decimal('1.000'),
+        )
+        self.pilar_p2 = Elemento.objects.create(
+            pavimento=self.terreo,
+            categoria=Elemento.CATEGORIA_ACO,
+            tipo=Elemento.TIPO_PILAR,
+            nome='P2',
+            identificador='1',
+            qtde=1,
+            diametro=Decimal('8.0'),
+            comprimento=Decimal('2.00'),
+            peso_linear=Decimal('1.000'),
+        )
         self.viga = Elemento.objects.create(
             pavimento=self.terreo,
             categoria=Elemento.CATEGORIA_ACO,
@@ -203,7 +225,10 @@ class RelatorioResumoAcoTests(TestCase):
         self.assertIn(b'Total geral', response.content)
         self.assertIn(b'Detalhamento por pavimento', response.content)
         self.assertIn(b'Pavimento: Terreo', response.content)
+        self.assertIn(b'Pilar P1 - 2 itens', response.content)
+        self.assertIn(b'Pilar P2 - 1 item', response.content)
         self.assertIn(b'P1', response.content)
+        self.assertIn(b'P2', response.content)
         self.assertIn(b'V1', response.content)
         self.assertIn(b'S1', response.content)
         self.assertNotIn(b'999,00', response.content)

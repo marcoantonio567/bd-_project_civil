@@ -171,18 +171,36 @@ def tabela_elementos_aco_pdf(elementos_aco, total_pavimento):
         'Peso unit. PC',
         'Peso total',
     ]]
-    for elemento in elementos_aco:
+    linhas_grupo = []
+    for (tipo, nome), itens in groupby(elementos_aco, key=lambda e: (e.tipo_rotulo, e.nome)):
+        itens = list(itens)
+        total_grupo = sum((e.peso_total for e in itens), Decimal('0'))
+        quantidade_itens = len(itens)
+        rotulo_item = 'item' if quantidade_itens == 1 else 'itens'
+        linhas_grupo.append(len(dados))
         dados.append([
-            elemento.tipo_rotulo,
-            elemento.nome,
-            elemento.identificador,
-            elemento.qtde,
-            elemento.get_diametro_display(),
-            formatar_decimal_br(elemento.comprimento),
-            formatar_decimal_br(elemento.peso_linear),
-            formatar_decimal_br(elemento.peso_unitario),
-            formatar_decimal_br(elemento.peso_total),
+            f'{tipo} {nome} - {quantidade_itens} {rotulo_item} - Total: {formatar_decimal_br(total_grupo)} kg',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
         ])
+        for elemento in itens:
+            dados.append([
+                elemento.tipo_rotulo,
+                elemento.nome,
+                elemento.identificador,
+                elemento.qtde,
+                elemento.get_diametro_display(),
+                formatar_decimal_br(elemento.comprimento),
+                formatar_decimal_br(elemento.peso_linear),
+                formatar_decimal_br(elemento.peso_unitario),
+                formatar_decimal_br(elemento.peso_total),
+            ])
     dados.append(['Total do pavimento', '', '', '', '', '', '', '', formatar_decimal_br(total_pavimento)])
 
     tabela = Table(
@@ -190,11 +208,21 @@ def tabela_elementos_aco_pdf(elementos_aco, total_pavimento):
         repeatRows=1,
         colWidths=[70, 90, 50, 42, 58, 55, 75, 80, 75],
     )
-    tabela.setStyle(estilo_tabela_pdf())
-    tabela.setStyle(TableStyle([
+    estilo = [
         ('ALIGN', (3, 1), (-1, -1), 'RIGHT'),
         ('SPAN', (0, -1), (7, -1)),
-    ]))
+    ]
+    for linha in linhas_grupo:
+        estilo.extend([
+            ('SPAN', (0, linha), (-1, linha)),
+            ('BACKGROUND', (0, linha), (-1, linha), colors.HexColor('#d6e4f0')),
+            ('TEXTCOLOR', (0, linha), (-1, linha), colors.HexColor('#1a5276')),
+            ('FONTNAME', (0, linha), (-1, linha), 'Helvetica-Bold'),
+            ('ALIGN', (0, linha), (-1, linha), 'LEFT'),
+        ])
+
+    tabela.setStyle(estilo_tabela_pdf())
+    tabela.setStyle(TableStyle(estilo))
     return tabela
 
 
