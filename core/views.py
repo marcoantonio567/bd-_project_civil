@@ -240,8 +240,7 @@ def relatorio_resumo_aco(request):
     )
     estilos = getSampleStyleSheet()
     elementos = [
-        Paragraph('Relatorio resumo de aco', estilos['Title']),
-        Paragraph('Pesos totais em kg, considerando somente elementos de aco.', estilos['Normal']),
+        Paragraph('Resumo sintetico', estilos['Title']),    
         Spacer(1, 14),
     ]
 

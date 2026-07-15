@@ -196,7 +196,7 @@ class RelatorioResumoAcoTests(TestCase):
         self.assertEqual(response['Content-Type'], 'application/pdf')
         self.assertIn('filename="relatorio-resumo-aco.pdf"', response['Content-Disposition'])
         self.assertTrue(response.content.startswith(b'%PDF'))
-        self.assertIn(b'Relatorio resumo de aco', response.content)
+        self.assertIn(b'Resumo sintetico', response.content)
         self.assertIn(b'Total geral', response.content)
         self.assertNotIn(b'999,00', response.content)
         self.assertNotIn(b'777,00', response.content)
