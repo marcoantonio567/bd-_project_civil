@@ -130,3 +130,73 @@ class ElementoInlineEditTests(TestCase):
         self.assertEqual(elemento.identificador, '3')
         self.assertEqual(elemento.qtde, 5)
         self.assertEqual(elemento.diametro, Decimal('8.0'))
+
+
+class RelatorioResumoAcoTests(TestCase):
+    def test_exporta_resumo_de_aco_em_pdf(self):
+        terreo = Pavimento.objects.create(nome='Terreo')
+        superior = Pavimento.objects.create(nome='Superior')
+
+        Elemento.objects.create(
+            pavimento=terreo,
+            categoria=Elemento.CATEGORIA_ACO,
+            tipo=Elemento.TIPO_PILAR,
+            nome='P1',
+            identificador='1',
+            qtde=2,
+            diametro=Decimal('10.0'),
+            comprimento=Decimal('3.00'),
+            peso_linear=Decimal('1.000'),
+        )
+        Elemento.objects.create(
+            pavimento=terreo,
+            categoria=Elemento.CATEGORIA_ACO,
+            tipo=Elemento.TIPO_VIGA,
+            nome='V1',
+            identificador='1',
+            qtde=1,
+            diametro=Decimal('10.0'),
+            comprimento=Decimal('4.00'),
+            peso_linear=Decimal('2.000'),
+        )
+        forma = Elemento.objects.create(
+            pavimento=terreo,
+            categoria=Elemento.CATEGORIA_FORMA,
+            tipo=Elemento.TIPO_VIGA,
+            nome='V1',
+            medida='2.00',
+            comprimento=Decimal('5.00'),
+        )
+        concreto = Elemento.objects.create(
+            pavimento=terreo,
+            categoria=Elemento.CATEGORIA_CONCRETO,
+            tipo=Elemento.TIPO_PILAR,
+            nome='P1',
+            medida_1=Decimal('0.20'),
+            medida_2=Decimal('0.30'),
+            comprimento=Decimal('3.00'),
+        )
+        Elemento.objects.filter(pk=forma.pk).update(peso_total=Decimal('999.00'))
+        Elemento.objects.filter(pk=concreto.pk).update(peso_total=Decimal('777.00'))
+        Elemento.objects.create(
+            pavimento=superior,
+            categoria=Elemento.CATEGORIA_ACO,
+            tipo=Elemento.TIPO_SAPATA,
+            nome='S1',
+            identificador='1',
+            qtde=5,
+            diametro=Decimal('8.0'),
+            comprimento=Decimal('1.00'),
+            peso_linear=Decimal('1.000'),
+        )
+
+        response = self.client.get(reverse('core:relatorio_resumo_aco'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertIn('filename="relatorio-resumo-aco.pdf"', response['Content-Disposition'])
+        self.assertTrue(response.content.startswith(b'%PDF'))
+        self.assertIn(b'Relatorio resumo de aco', response.content)
+        self.assertIn(b'Total geral', response.content)
+        self.assertNotIn(b'999,00', response.content)
+        self.assertNotIn(b'777,00', response.content)

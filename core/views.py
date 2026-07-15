@@ -1,9 +1,16 @@
 import re
+from decimal import Decimal
+from io import BytesIO
 from itertools import groupby
 
 from django.contrib import messages
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from .forms import ElementoForm, PavimentoForm
 from .models import Elemento, Pavimento
@@ -29,6 +36,64 @@ def resumo_por_diametro(elementos):
             'peso_total': sum(e.peso_total for e in itens),
         })
     return resumo
+
+
+def formatar_decimal_br(valor):
+    return f'{valor:.2f}'.replace('.', ',')
+
+
+def pavimentos_filtrados(busca=''):
+    pavimentos = Pavimento.objects.prefetch_related('elementos').all()
+    if busca:
+        pavimentos = pavimentos.filter(nome__icontains=busca)
+    return sorted(pavimentos, key=lambda p: chave_natural(p.nome))
+
+
+def resumo_aco_por_pavimentos(pavimentos):
+    """Resume somente o peso de aco, separado por pavimento e tipo."""
+    tipos = [{'codigo': codigo, 'rotulo': rotulo} for codigo, rotulo in Elemento.TIPO_CHOICES]
+    totais_por_tipo = {tipo['codigo']: Decimal('0') for tipo in tipos}
+    linhas = []
+    total_geral = Decimal('0')
+
+    for pavimento in pavimentos:
+        elementos_aco = [e for e in pavimento.elementos.all() if e.eh_aco]
+        total_pavimento = Decimal('0')
+        totais_tipo = []
+
+        for tipo in tipos:
+            subtotal = sum(
+                (e.peso_total for e in elementos_aco if e.tipo == tipo['codigo']),
+                Decimal('0'),
+            )
+            totais_tipo.append({
+                'codigo': tipo['codigo'],
+                'rotulo': tipo['rotulo'],
+                'peso_total': subtotal,
+            })
+            totais_por_tipo[tipo['codigo']] += subtotal
+            total_pavimento += subtotal
+
+        linhas.append({
+            'pavimento': pavimento,
+            'tipos': totais_tipo,
+            'total': total_pavimento,
+        })
+        total_geral += total_pavimento
+
+    return {
+        'tipos': tipos,
+        'linhas': linhas,
+        'totais_tipos': [
+            {
+                'codigo': tipo['codigo'],
+                'rotulo': tipo['rotulo'],
+                'peso_total': totais_por_tipo[tipo['codigo']],
+            }
+            for tipo in tipos
+        ],
+        'total_geral': total_geral,
+    }
 
 
 def elemento_form_prefix(elemento):
@@ -149,14 +214,73 @@ def home(request):
 
 def pavimento_list(request):
     busca = request.GET.get('q', '').strip()
-    pavimentos = Pavimento.objects.all()
-    if busca:
-        pavimentos = pavimentos.filter(nome__icontains=busca)
-    pavimentos = sorted(pavimentos, key=lambda p: chave_natural(p.nome))
+    pavimentos = pavimentos_filtrados(busca)
+    resumo_aco = resumo_aco_por_pavimentos(pavimentos)
     return render(request, 'core/pavimento_list.html', {
         'pavimentos': pavimentos,
         'busca': busca,
+        'resumo_aco': resumo_aco,
     })
+
+
+def relatorio_resumo_aco(request):
+    busca = request.GET.get('q', '').strip()
+    pavimentos = pavimentos_filtrados(busca)
+    resumo_aco = resumo_aco_por_pavimentos(pavimentos)
+
+    buffer = BytesIO()
+    documento = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        rightMargin=24,
+        leftMargin=24,
+        topMargin=24,
+        bottomMargin=24,
+        pageCompression=0,
+    )
+    estilos = getSampleStyleSheet()
+    elementos = [
+        Paragraph('Relatorio resumo de aco', estilos['Title']),
+        Paragraph('Pesos totais em kg, considerando somente elementos de aco.', estilos['Normal']),
+        Spacer(1, 14),
+    ]
+
+    dados = [[
+        'Pavimento',
+        *[f'{tipo["rotulo"]} (kg)' for tipo in resumo_aco['tipos']],
+        'Total aco (kg)',
+    ]]
+    for linha in resumo_aco['linhas']:
+        dados.append([
+            linha['pavimento'].nome,
+            *[formatar_decimal_br(tipo['peso_total']) for tipo in linha['tipos']],
+            formatar_decimal_br(linha['total']),
+        ])
+    dados.append([
+        'Total geral',
+        *[formatar_decimal_br(tipo['peso_total']) for tipo in resumo_aco['totais_tipos']],
+        formatar_decimal_br(resumo_aco['total_geral']),
+    ])
+
+    tabela = Table(dados, repeatRows=1)
+    tabela.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a5276')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#eaf2f8')),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d5d8dc')),
+        ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f7f9fb')]),
+        ('PADDING', (0, 0), (-1, -1), 6),
+    ]))
+    elementos.append(tabela)
+    documento.build(elementos)
+
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="relatorio-resumo-aco.pdf"'
+    return response
 
 
 def pavimento_create(request):
