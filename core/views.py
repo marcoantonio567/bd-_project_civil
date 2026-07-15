@@ -55,16 +55,6 @@ def contexto_pavimento_detail(
         key=lambda e: (e.categoria, e.tipo, chave_natural(e.nome), chave_natural(e.identificador)),
     )
 
-    for elemento in elementos:
-        if formulario_edicao is not None and elemento.pk == elemento_editando_pk:
-            elemento.form_edicao = formulario_edicao
-        else:
-            elemento.form_edicao = ElementoForm(
-                instance=elemento,
-                pavimento=pavimento,
-                prefix=elemento_form_prefix(elemento),
-            )
-
     return {
         'pavimento': pavimento,
         'grupos': agrupar_elementos(elementos),
@@ -75,6 +65,7 @@ def contexto_pavimento_detail(
         'duplicando': duplicando,
         'preenchido_automatico': preenchido_automatico,
         'elemento_editando_pk': elemento_editando_pk,
+        'formulario_edicao': formulario_edicao,
     }
 
 
@@ -184,6 +175,8 @@ def pavimento_detail(request, pk):
     pavimento = get_object_or_404(Pavimento, pk=pk)
     duplicando = None
     preenchido_automatico = False
+    formulario_edicao = None
+    elemento_editando_pk = None
     if request.method == 'POST':
         form = ElementoForm(request.POST, pavimento=pavimento)
         if form.is_valid():
@@ -196,6 +189,16 @@ def pavimento_detail(request, pk):
         duplicar_pk = request.GET.get('duplicar')
         if duplicar_pk:
             duplicando = pavimento.elementos.filter(pk=duplicar_pk).first()
+        editar_pk = request.GET.get('editar')
+        if editar_pk:
+            elemento_editando = pavimento.elementos.filter(pk=editar_pk).first()
+            if elemento_editando:
+                elemento_editando_pk = elemento_editando.pk
+                formulario_edicao = ElementoForm(
+                    instance=elemento_editando,
+                    pavimento=pavimento,
+                    prefix=elemento_form_prefix(elemento_editando),
+                )
         base = duplicando
         if not base and not request.GET.get('novo'):
             base = pavimento.elementos.order_by('-pk').first()
@@ -219,7 +222,14 @@ def pavimento_detail(request, pk):
     return render(
         request,
         'core/pavimento_detail.html',
-        contexto_pavimento_detail(pavimento, form, duplicando, preenchido_automatico),
+        contexto_pavimento_detail(
+            pavimento,
+            form,
+            duplicando,
+            preenchido_automatico,
+            formulario_edicao=formulario_edicao,
+            elemento_editando_pk=elemento_editando_pk,
+        ),
     )
 
 

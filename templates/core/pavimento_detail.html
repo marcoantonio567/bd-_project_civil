@@ -94,7 +94,7 @@
                                         <td>{{ elemento.peso_total }}</td>
                                     {% endif %}
                                     <td class="acoes">
-                                        <button type="button" class="botao-secundario pequeno botao-editar" data-edit-target="editar-{{ elemento.pk }}">Editar</button>
+                                        <a href="?editar={{ elemento.pk }}#elemento-{{ elemento.pk }}" class="botao-secundario pequeno preserve-scroll-link">Editar</a>
                                         <a href="?duplicar={{ elemento.pk }}#adicionar" class="botao-secundario pequeno">Duplicar</a>
                                         <form method="post" action="{% url 'core:elemento_delete' pavimento.pk elemento.pk %}"
                                               class="preserve-scroll"
@@ -104,18 +104,20 @@
                                         </form>
                                     </td>
                                 </tr>
-                                <tr id="editar-{{ elemento.pk }}" class="linha-edicao{% if elemento_editando_pk == elemento.pk %} aberta{% endif %}"{% if elemento_editando_pk != elemento.pk %} hidden{% endif %}>
-                                    <td colspan="{% if grupo.eh_aco %}9{% elif grupo.eh_forma %}5{% else %}6{% endif %}">
-                                        <form method="post" action="{% url 'core:elemento_edit' pavimento.pk elemento.pk %}" class="formulario formulario-grade formulario-edicao preserve-scroll" data-elemento-form>
-                                            {% csrf_token %}
-                                            {% include 'core/_elemento_form_fields.html' with form=elemento.form_edicao %}
-                                            <div class="acoes-edicao">
-                                                <button type="submit">Salvar</button>
-                                                <button type="button" class="botao-secundario" data-cancel-edit="editar-{{ elemento.pk }}">Cancelar</button>
-                                            </div>
-                                        </form>
-                                    </td>
-                                </tr>
+                                {% if elemento_editando_pk == elemento.pk %}
+                                    <tr id="editar-{{ elemento.pk }}" class="linha-edicao aberta">
+                                        <td colspan="{% if grupo.eh_aco %}9{% elif grupo.eh_forma %}5{% else %}6{% endif %}">
+                                            <form method="post" action="{% url 'core:elemento_edit' pavimento.pk elemento.pk %}" class="formulario formulario-grade formulario-edicao preserve-scroll" data-elemento-form>
+                                                {% csrf_token %}
+                                                {% include 'core/_elemento_form_fields.html' with form=formulario_edicao %}
+                                                <div class="acoes-edicao">
+                                                    <button type="submit">Salvar</button>
+                                                    <a href="{% url 'core:pavimento_detail' pavimento.pk %}#elemento-{{ elemento.pk }}" class="botao-secundario preserve-scroll-link">Cancelar</a>
+                                                </div>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                {% endif %}
                             {% endfor %}
                             {% if grupo.eh_aco %}
                                 {% for d in grupo_nome.diametros %}
@@ -356,45 +358,11 @@
         }
         {% endif %}
 
-        document.querySelectorAll('.botao-editar').forEach(function (botao) {
-            botao.addEventListener('click', function () {
-                const linha = document.getElementById(botao.dataset.editTarget);
-                if (!linha) {
-                    return;
-                }
-                const vaiAbrir = linha.hidden;
-                document.querySelectorAll('.linha-edicao').forEach(function (outraLinha) {
-                    if (outraLinha !== linha) {
-                        outraLinha.hidden = true;
-                        outraLinha.classList.remove('aberta');
-                    }
-                });
-                linha.hidden = !vaiAbrir;
-                linha.classList.toggle('aberta', vaiAbrir);
-                if (vaiAbrir) {
-                    const primeiroCampo = linha.querySelector('input:not([disabled]), select:not([disabled])');
-                    if (primeiroCampo) {
-                        primeiroCampo.focus({preventScroll: true});
-                    }
-                }
-            });
-        });
-
-        document.querySelectorAll('[data-cancel-edit]').forEach(function (botao) {
-            botao.addEventListener('click', function () {
-                const linha = document.getElementById(botao.dataset.cancelEdit);
-                if (linha) {
-                    linha.hidden = true;
-                    linha.classList.remove('aberta');
-                }
-            });
-        });
-
         document.querySelectorAll('form.preserve-scroll').forEach(function (formulario) {
             formulario.addEventListener('submit', guardarRolagem);
         });
 
-        document.querySelectorAll('a[href*="duplicar"]').forEach(function (link) {
+        document.querySelectorAll('a.preserve-scroll-link, a[href*="duplicar"]').forEach(function (link) {
             link.addEventListener('click', guardarRolagem);
         });
 
