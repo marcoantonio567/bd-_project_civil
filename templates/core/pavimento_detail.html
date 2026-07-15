@@ -32,9 +32,33 @@
     <h3 id="elementos">Elementos cadastrados</h3>
     {% if tem_elementos %}
         {% for grupo in grupos %}
-            <h4 class="titulo-grupo">{{ grupo.categoria }}</h4>
+            <details class="grupo-recolhivel grupo-categoria" open data-collapse-id="categoria-{{ grupo.categoria|slugify }}">
+                <summary class="titulo-grupo">
+                    <span>{{ grupo.categoria }}</span>
+                    <span class="resumo-grupo">
+                        {% if grupo.eh_aco %}
+                            {{ grupo.peso_total|floatformat:2 }} kg
+                        {% elif grupo.eh_forma %}
+                            {{ grupo.area_total|floatformat:2 }} m²
+                        {% elif grupo.eh_concreto %}
+                            {{ grupo.volume_total|floatformat:3 }} m³
+                        {% endif %}
+                    </span>
+                </summary>
             {% for grupo_tipo in grupo.tipos %}
-                <h5 class="subtitulo-grupo">{{ grupo_tipo.tipo }}</h5>
+                <details class="grupo-recolhivel grupo-tipo" open data-collapse-id="tipo-{{ grupo.categoria|slugify }}-{{ grupo_tipo.tipo|slugify }}">
+                    <summary class="subtitulo-grupo">
+                        <span>{{ grupo_tipo.tipo }}</span>
+                        <span class="resumo-grupo">
+                            {% if grupo.eh_aco %}
+                                {{ grupo_tipo.peso_total|floatformat:2 }} kg
+                            {% elif grupo.eh_forma %}
+                                {{ grupo_tipo.area_total|floatformat:2 }} m²
+                            {% elif grupo.eh_concreto %}
+                                {{ grupo_tipo.volume_total|floatformat:3 }} m³
+                            {% endif %}
+                        </span>
+                    </summary>
                 <table>
                     <thead>
                         <tr>
@@ -66,12 +90,17 @@
                         {% for grupo_nome in grupo_tipo.nomes %}
                             <tr class="cabecalho-nome">
                                 <td colspan="{% if grupo.eh_aco %}9{% elif grupo.eh_forma %}5{% else %}6{% endif %}">
-                                    {{ grupo.categoria }} - {{ grupo_tipo.tipo }} <strong>{{ grupo_nome.nome }}</strong>
-                                    - {{ grupo_nome.elementos|length }} peça{{ grupo_nome.elementos|length|pluralize }}
+                                    <button type="button" class="controle-recolher" data-collapse-target="nome-{{ grupo_nome.elementos.0.pk }}" aria-expanded="true">
+                                        <span class="icone-recolher" aria-hidden="true"></span>
+                                        <span>
+                                            {{ grupo.categoria }} - {{ grupo_tipo.tipo }} <strong>{{ grupo_nome.nome }}</strong>
+                                            - {{ grupo_nome.elementos|length }} peça{{ grupo_nome.elementos|length|pluralize }}
+                                        </span>
+                                    </button>
                                 </td>
                             </tr>
                             {% for elemento in grupo_nome.elementos %}
-                                <tr id="elemento-{{ elemento.pk }}" class="linha-elemento">
+                                <tr id="elemento-{{ elemento.pk }}" class="linha-elemento" data-collapse-group="nome-{{ grupo_nome.elementos.0.pk }}">
                                     <td>{{ elemento.nome }}</td>
                                     {% if grupo.eh_forma %}
                                         <td>{{ elemento.medida }}</td>
@@ -105,7 +134,7 @@
                                     </td>
                                 </tr>
                                 {% if elemento_editando_pk == elemento.pk %}
-                                    <tr id="editar-{{ elemento.pk }}" class="linha-edicao aberta">
+                                    <tr id="editar-{{ elemento.pk }}" class="linha-edicao aberta" data-collapse-group="nome-{{ grupo_nome.elementos.0.pk }}">
                                         <td colspan="{% if grupo.eh_aco %}9{% elif grupo.eh_forma %}5{% else %}6{% endif %}">
                                             <form method="post" action="{% url 'core:elemento_edit' pavimento.pk elemento.pk %}" class="formulario formulario-grade formulario-edicao preserve-scroll" data-elemento-form>
                                                 {% csrf_token %}
@@ -121,7 +150,7 @@
                             {% endfor %}
                             {% if grupo.eh_aco %}
                                 {% for d in grupo_nome.diametros %}
-                                    <tr class="subtotal-diametro">
+                                    <tr class="subtotal-diametro" data-collapse-group="nome-{{ grupo_nome.elementos.0.pk }}">
                                         <td colspan="2">{{ grupo_nome.nome }} - Ø {{ d.rotulo }} mm</td>
                                         <td>{{ d.qtde }}</td>
                                         <td>{{ d.rotulo }}</td>
@@ -132,7 +161,7 @@
                                     </tr>
                                 {% endfor %}
                             {% endif %}
-                            <tr class="subtotal">
+                            <tr class="subtotal" data-collapse-group="nome-{{ grupo_nome.elementos.0.pk }}">
                                 {% if grupo.eh_aco %}
                                     <td colspan="2">Total {{ grupo_nome.nome }}</td>
                                     <td>{{ grupo_nome.qtde }}</td>
@@ -184,7 +213,9 @@
                         </tfoot>
                     {% endif %}
                 </table>
+                </details>
             {% endfor %}
+            </details>
         {% endfor %}
 
         {% if pavimento.volume_total_concreto %}
@@ -254,6 +285,8 @@
         };
         const nomesFormaPorTipo = JSON.parse(document.getElementById('nomes-forma-data').textContent);
         const chaveRolagem = 'cadastro-civil-scroll:' + window.location.pathname;
+        const chaveRecolhimento = 'cadastro-civil-collapse:' + window.location.pathname;
+        const estadosRecolhimento = carregarRecolhimentos();
 
         function alternarGrupo(campos, exibir) {
             campos.forEach(function (grupoCampo) {
@@ -348,6 +381,64 @@
             sessionStorage.setItem(chaveRolagem, String(window.scrollY));
         }
 
+        function carregarRecolhimentos() {
+            try {
+                return JSON.parse(localStorage.getItem(chaveRecolhimento)) || {};
+            } catch (erro) {
+                return {};
+            }
+        }
+
+        function salvarRecolhimento(id, aberto) {
+            estadosRecolhimento[id] = aberto;
+            localStorage.setItem(chaveRecolhimento, JSON.stringify(estadosRecolhimento));
+        }
+
+        function prepararGruposRecolhiveis() {
+            document.querySelectorAll('details[data-collapse-id]').forEach(function (detalhe) {
+                const id = detalhe.dataset.collapseId;
+                if (Object.prototype.hasOwnProperty.call(estadosRecolhimento, id)) {
+                    detalhe.open = Boolean(estadosRecolhimento[id]);
+                }
+                detalhe.addEventListener('toggle', function () {
+                    salvarRecolhimento(id, detalhe.open);
+                });
+            });
+
+            document.querySelectorAll('[data-collapse-target]').forEach(function (botao) {
+                const id = botao.dataset.collapseTarget;
+                const linhas = Array.from(document.querySelectorAll('[data-collapse-group="' + id + '"]'));
+                const temEdicaoAberta = linhas.some(function (linha) {
+                    return linha.classList.contains('aberta');
+                });
+
+                function aplicar(aberto) {
+                    linhas.forEach(function (linha) {
+                        linha.hidden = !aberto;
+                    });
+                    botao.setAttribute('aria-expanded', aberto ? 'true' : 'false');
+                    botao.classList.toggle('fechado', !aberto);
+                }
+
+                const temEstadoSalvo = Object.prototype.hasOwnProperty.call(estadosRecolhimento, id);
+                const abertoInicial = temEdicaoAberta || !temEstadoSalvo || Boolean(estadosRecolhimento[id]);
+                aplicar(abertoInicial);
+
+                if (temEdicaoAberta) {
+                    botao.closest('details.grupo-tipo').open = true;
+                    botao.closest('details.grupo-categoria').open = true;
+                    salvarRecolhimento(id, true);
+                }
+
+                botao.addEventListener('click', function () {
+                    const aberto = botao.getAttribute('aria-expanded') !== 'true';
+                    aplicar(aberto);
+                    salvarRecolhimento(id, aberto);
+                });
+            });
+        }
+
+        prepararGruposRecolhiveis();
         document.querySelectorAll('[data-elemento-form]').forEach(prepararFormularioElemento);
 
         {% if duplicando %}

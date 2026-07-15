@@ -154,6 +154,54 @@ tr.linha-edicao.aberta td {
     box-shadow: inset 4px 0 0 #1a5276;
 }
 
+tbody tr[hidden] {
+    display: none;
+}
+
+.grupo-recolhivel {
+    margin-bottom: 0.75rem;
+}
+
+.grupo-recolhivel > summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border-radius: 4px;
+}
+
+.grupo-recolhivel > summary::-webkit-details-marker {
+    display: none;
+}
+
+.grupo-recolhivel > summary::before {
+    content: "";
+    width: 0.45rem;
+    height: 0.45rem;
+    border: solid currentColor;
+    border-width: 0 2px 2px 0;
+    flex: 0 0 auto;
+    transform: rotate(45deg);
+    transition: transform 0.15s ease;
+}
+
+.grupo-recolhivel:not([open]) > summary::before {
+    transform: rotate(-45deg);
+}
+
+.grupo-recolhivel > summary > span:first-child {
+    flex: 1;
+}
+
+.resumo-grupo {
+    color: #555;
+    font-size: 0.9rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
 .tabela-resumo {
     max-width: 700px;
 }
@@ -197,12 +245,51 @@ td.acoes form {
 .titulo-grupo {
     margin-top: 1.5rem;
     color: #1a5276;
+    background: #eaf2f8;
+    border: 1px solid #c7dced;
+    font-size: 1.05rem;
+    font-weight: 700;
+    padding: 0.7rem 0.9rem;
 }
 
 .subtitulo-grupo {
     margin: 0.5rem 0;
     color: #444;
+    background: #f4f7f9;
+    border: 1px solid #e0e6eb;
     font-size: 1rem;
+    font-weight: 700;
+    padding: 0.5rem 0.75rem;
+}
+
+.controle-recolher {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    font: inherit;
+}
+
+.controle-recolher:hover {
+    background: transparent;
+}
+
+.icone-recolher {
+    width: 0.45rem;
+    height: 0.45rem;
+    border: solid currentColor;
+    border-width: 0 2px 2px 0;
+    flex: 0 0 auto;
+    transform: rotate(45deg);
+    transition: transform 0.15s ease;
+}
+
+.controle-recolher.fechado .icone-recolher {
+    transform: rotate(-45deg);
 }
 
 .total-geral {
