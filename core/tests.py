@@ -133,12 +133,12 @@ class ElementoInlineEditTests(TestCase):
 
 
 class RelatorioResumoAcoTests(TestCase):
-    def test_exporta_resumo_de_aco_em_pdf(self):
-        terreo = Pavimento.objects.create(nome='Terreo')
-        superior = Pavimento.objects.create(nome='Superior')
+    def criar_dados_relatorio(self):
+        self.terreo = Pavimento.objects.create(nome='Terreo')
+        self.superior = Pavimento.objects.create(nome='Superior')
 
-        Elemento.objects.create(
-            pavimento=terreo,
+        self.pilar = Elemento.objects.create(
+            pavimento=self.terreo,
             categoria=Elemento.CATEGORIA_ACO,
             tipo=Elemento.TIPO_PILAR,
             nome='P1',
@@ -148,8 +148,8 @@ class RelatorioResumoAcoTests(TestCase):
             comprimento=Decimal('3.00'),
             peso_linear=Decimal('1.000'),
         )
-        Elemento.objects.create(
-            pavimento=terreo,
+        self.viga = Elemento.objects.create(
+            pavimento=self.terreo,
             categoria=Elemento.CATEGORIA_ACO,
             tipo=Elemento.TIPO_VIGA,
             nome='V1',
@@ -160,7 +160,7 @@ class RelatorioResumoAcoTests(TestCase):
             peso_linear=Decimal('2.000'),
         )
         forma = Elemento.objects.create(
-            pavimento=terreo,
+            pavimento=self.terreo,
             categoria=Elemento.CATEGORIA_FORMA,
             tipo=Elemento.TIPO_VIGA,
             nome='V1',
@@ -168,7 +168,7 @@ class RelatorioResumoAcoTests(TestCase):
             comprimento=Decimal('5.00'),
         )
         concreto = Elemento.objects.create(
-            pavimento=terreo,
+            pavimento=self.terreo,
             categoria=Elemento.CATEGORIA_CONCRETO,
             tipo=Elemento.TIPO_PILAR,
             nome='P1',
@@ -178,8 +178,8 @@ class RelatorioResumoAcoTests(TestCase):
         )
         Elemento.objects.filter(pk=forma.pk).update(peso_total=Decimal('999.00'))
         Elemento.objects.filter(pk=concreto.pk).update(peso_total=Decimal('777.00'))
-        Elemento.objects.create(
-            pavimento=superior,
+        self.sapata = Elemento.objects.create(
+            pavimento=self.superior,
             categoria=Elemento.CATEGORIA_ACO,
             tipo=Elemento.TIPO_SAPATA,
             nome='S1',
@@ -190,6 +190,9 @@ class RelatorioResumoAcoTests(TestCase):
             peso_linear=Decimal('1.000'),
         )
 
+    def test_exporta_relatorio_de_aco_em_pdf_com_sintetico_e_analitico(self):
+        self.criar_dados_relatorio()
+
         response = self.client.get(reverse('core:relatorio_resumo_aco'))
 
         self.assertEqual(response.status_code, 200)
@@ -198,5 +201,10 @@ class RelatorioResumoAcoTests(TestCase):
         self.assertTrue(response.content.startswith(b'%PDF'))
         self.assertIn(b'Resumo sintetico', response.content)
         self.assertIn(b'Total geral', response.content)
+        self.assertIn(b'Detalhamento por pavimento', response.content)
+        self.assertIn(b'Pavimento: Terreo', response.content)
+        self.assertIn(b'P1', response.content)
+        self.assertIn(b'V1', response.content)
+        self.assertIn(b'S1', response.content)
         self.assertNotIn(b'999,00', response.content)
         self.assertNotIn(b'777,00', response.content)

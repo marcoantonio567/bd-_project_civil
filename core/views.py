@@ -10,7 +10,7 @@ from django.urls import reverse
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from .forms import ElementoForm, PavimentoForm
 from .models import Elemento, Pavimento
@@ -39,6 +39,8 @@ def resumo_por_diametro(elementos):
 
 
 def formatar_decimal_br(valor):
+    if valor is None:
+        return ''
     return f'{valor:.2f}'.replace('.', ',')
 
 
@@ -94,6 +96,106 @@ def resumo_aco_por_pavimentos(pavimentos):
         ],
         'total_geral': total_geral,
     }
+
+
+def elementos_aco_do_pavimento(pavimento):
+    return sorted(
+        [e for e in pavimento.elementos.all() if e.eh_aco],
+        key=lambda e: (e.tipo, chave_natural(e.nome), chave_natural(e.identificador)),
+    )
+
+
+def criar_documento_pdf(buffer):
+    return SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        rightMargin=24,
+        leftMargin=24,
+        topMargin=24,
+        bottomMargin=24,
+        pageCompression=0,
+    )
+
+
+def estilo_tabela_pdf(linha_total=True):
+    estilo = [
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a5276')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d5d8dc')),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f7f9fb')]),
+        ('PADDING', (0, 0), (-1, -1), 6),
+    ]
+    if linha_total:
+        estilo.extend([
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#eaf2f8')),
+        ])
+    return TableStyle(estilo)
+
+
+def tabela_resumo_aco_pdf(resumo_aco):
+    dados = [[
+        'Pavimento',
+        *[f'{tipo["rotulo"]} (kg)' for tipo in resumo_aco['tipos']],
+        'Total aco (kg)',
+    ]]
+    for linha in resumo_aco['linhas']:
+        dados.append([
+            linha['pavimento'].nome,
+            *[formatar_decimal_br(tipo['peso_total']) for tipo in linha['tipos']],
+            formatar_decimal_br(linha['total']),
+        ])
+    dados.append([
+        'Total geral',
+        *[formatar_decimal_br(tipo['peso_total']) for tipo in resumo_aco['totais_tipos']],
+        formatar_decimal_br(resumo_aco['total_geral']),
+    ])
+
+    tabela = Table(dados, repeatRows=1)
+    tabela.setStyle(estilo_tabela_pdf())
+    tabela.setStyle(TableStyle([('ALIGN', (1, 1), (-1, -1), 'RIGHT')]))
+    return tabela
+
+
+def tabela_elementos_aco_pdf(elementos_aco, total_pavimento):
+    dados = [[
+        'Tipo',
+        'Nome',
+        'ID',
+        'QTDE',
+        'DIAM (mm)',
+        'L (m)',
+        'Peso linear',
+        'Peso unit. PC',
+        'Peso total',
+    ]]
+    for elemento in elementos_aco:
+        dados.append([
+            elemento.tipo_rotulo,
+            elemento.nome,
+            elemento.identificador,
+            elemento.qtde,
+            elemento.get_diametro_display(),
+            formatar_decimal_br(elemento.comprimento),
+            formatar_decimal_br(elemento.peso_linear),
+            formatar_decimal_br(elemento.peso_unitario),
+            formatar_decimal_br(elemento.peso_total),
+        ])
+    dados.append(['Total do pavimento', '', '', '', '', '', '', '', formatar_decimal_br(total_pavimento)])
+
+    tabela = Table(
+        dados,
+        repeatRows=1,
+        colWidths=[70, 90, 50, 42, 58, 55, 75, 80, 75],
+    )
+    tabela.setStyle(estilo_tabela_pdf())
+    tabela.setStyle(TableStyle([
+        ('ALIGN', (3, 1), (-1, -1), 'RIGHT'),
+        ('SPAN', (0, -1), (7, -1)),
+    ]))
+    return tabela
 
 
 def elemento_form_prefix(elemento):
@@ -229,52 +331,32 @@ def relatorio_resumo_aco(request):
     resumo_aco = resumo_aco_por_pavimentos(pavimentos)
 
     buffer = BytesIO()
-    documento = SimpleDocTemplate(
-        buffer,
-        pagesize=landscape(A4),
-        rightMargin=24,
-        leftMargin=24,
-        topMargin=24,
-        bottomMargin=24,
-        pageCompression=0,
-    )
+    documento = criar_documento_pdf(buffer)
     estilos = getSampleStyleSheet()
     elementos = [
         Paragraph('Resumo sintetico', estilos['Title']),    
         Spacer(1, 14),
     ]
-
-    dados = [[
-        'Pavimento',
-        *[f'{tipo["rotulo"]} (kg)' for tipo in resumo_aco['tipos']],
-        'Total aco (kg)',
-    ]]
-    for linha in resumo_aco['linhas']:
-        dados.append([
-            linha['pavimento'].nome,
-            *[formatar_decimal_br(tipo['peso_total']) for tipo in linha['tipos']],
-            formatar_decimal_br(linha['total']),
-        ])
-    dados.append([
-        'Total geral',
-        *[formatar_decimal_br(tipo['peso_total']) for tipo in resumo_aco['totais_tipos']],
-        formatar_decimal_br(resumo_aco['total_geral']),
+    elementos.append(tabela_resumo_aco_pdf(resumo_aco))
+    elementos.extend([
+        PageBreak(),
+        Paragraph('Detalhamento por pavimento', estilos['Heading2']),
+        Spacer(1, 8),
     ])
 
-    tabela = Table(dados, repeatRows=1)
-    tabela.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a5276')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#eaf2f8')),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d5d8dc')),
-        ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f7f9fb')]),
-        ('PADDING', (0, 0), (-1, -1), 6),
-    ]))
-    elementos.append(tabela)
+    for linha in resumo_aco['linhas']:
+        pavimento = linha['pavimento']
+        elementos_aco = elementos_aco_do_pavimento(pavimento)
+        elementos.append(Paragraph(
+            f'Pavimento: {pavimento.nome} - Total: {formatar_decimal_br(linha["total"])} kg',
+            estilos['Heading3'],
+        ))
+        if elementos_aco:
+            elementos.append(tabela_elementos_aco_pdf(elementos_aco, linha['total']))
+        else:
+            elementos.append(Paragraph('Nenhum elemento de aco cadastrado neste pavimento.', estilos['Normal']))
+        elementos.append(Spacer(1, 14))
+
     documento.build(elementos)
 
     response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
