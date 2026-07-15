@@ -145,6 +145,15 @@ tr.subtotal-diametro td {
     color: #1e6b3a;
 }
 
+tr.linha-edicao td {
+    background: #f8fbfd;
+    border-bottom: 2px solid #aec9de;
+}
+
+tr.linha-edicao.aberta td {
+    box-shadow: inset 4px 0 0 #1a5276;
+}
+
 .tabela-resumo {
     max-width: 700px;
 }
@@ -239,6 +248,16 @@ td.acoes form {
 .formulario-grade input,
 .formulario-grade select {
     max-width: none;
+}
+
+.formulario-edicao {
+    margin: 0.25rem 0;
+}
+
+.acoes-edicao {
+    display: flex;
+    align-items: end;
+    gap: 0.5rem;
 }
 
 .erro {

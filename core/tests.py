@@ -88,3 +88,45 @@ class ElementoConcretoTests(TestCase):
         self.assertEqual(elemento.qtde, 1)
         self.assertIsNone(elemento.diametro)
         self.assertIsNone(elemento.peso_linear)
+
+
+class ElementoInlineEditTests(TestCase):
+    def test_edita_elemento_com_formulario_prefixado(self):
+        pavimento = Pavimento.objects.create(nome='Terreo')
+        elemento = Elemento.objects.create(
+            pavimento=pavimento,
+            categoria=Elemento.CATEGORIA_ACO,
+            tipo=Elemento.TIPO_PILAR,
+            nome='P1',
+            identificador='1',
+            qtde=2,
+            diametro=Decimal('10.0'),
+            comprimento=Decimal('3.50'),
+            peso_linear=Decimal('0.617'),
+        )
+        prefix = f'edit-{elemento.pk}'
+
+        response = self.client.post(
+            reverse('core:elemento_edit', args=[pavimento.pk, elemento.pk]),
+            {
+                f'{prefix}-categoria': Elemento.CATEGORIA_ACO,
+                f'{prefix}-tipo': Elemento.TIPO_PILAR,
+                f'{prefix}-nome': 'P2',
+                f'{prefix}-identificador': '3',
+                f'{prefix}-qtde': '5',
+                f'{prefix}-diametro': '8.0',
+                f'{prefix}-comprimento': '2.40',
+                f'{prefix}-peso_linear': '0.395',
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            f'{reverse("core:pavimento_detail", args=[pavimento.pk])}#elemento-{elemento.pk}',
+            fetch_redirect_response=False,
+        )
+        elemento.refresh_from_db()
+        self.assertEqual(elemento.nome, 'P2')
+        self.assertEqual(elemento.identificador, '3')
+        self.assertEqual(elemento.qtde, 5)
+        self.assertEqual(elemento.diametro, Decimal('8.0'))

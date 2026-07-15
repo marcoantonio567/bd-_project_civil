@@ -1,0 +1,22 @@
+{% for field in form %}
+    {% if field.name == 'nome' %}
+        <p class="campo-nome-livre">
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.errors %}<span class="erro">{{ field.errors|striptags }}</span>{% endif %}
+        </p>
+        <p class="campo-nome-forma">
+            <label for="{{ form.prefix|default:'novo' }}_nome_forma">Nome</label>
+            <select id="{{ form.prefix|default:'novo' }}_nome_forma" name="{{ field.html_name }}" disabled data-current="{{ field.value|default_if_none:'' }}">
+                <option value="">Selecione o tipo primeiro...</option>
+            </select>
+            {% if field.errors %}<span class="erro">{{ field.errors|striptags }}</span>{% endif %}
+        </p>
+    {% else %}
+        <p{% if field.name == 'identificador' or field.name == 'qtde' %} class="campo-generico"{% elif field.name == 'medida' %} class="campo-forma-apenas"{% elif field.name == 'medida_1' or field.name == 'medida_2' %} class="campo-concreto-apenas"{% elif field.name == 'comprimento' %} class="campo-comprimento"{% elif field.name == 'diametro' or field.name == 'peso_linear' %} class="campo-aco-apenas"{% endif %}>
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.errors %}<span class="erro">{{ field.errors|striptags }}</span>{% endif %}
+        </p>
+    {% endif %}
+{% endfor %}

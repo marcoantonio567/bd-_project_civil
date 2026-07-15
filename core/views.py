@@ -3,6 +3,7 @@ from itertools import groupby
 
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from .forms import ElementoForm, PavimentoForm
 from .models import Elemento, Pavimento
@@ -28,6 +29,53 @@ def resumo_por_diametro(elementos):
             'peso_total': sum(e.peso_total for e in itens),
         })
     return resumo
+
+
+def elemento_form_prefix(elemento):
+    return f'edit-{elemento.pk}'
+
+
+def redirect_pavimento_detail(pavimento, anchor=''):
+    url = reverse('core:pavimento_detail', kwargs={'pk': pavimento.pk})
+    if anchor:
+        url = f'{url}#{anchor}'
+    return redirect(url)
+
+
+def contexto_pavimento_detail(
+    pavimento,
+    form,
+    duplicando=None,
+    preenchido_automatico=False,
+    formulario_edicao=None,
+    elemento_editando_pk=None,
+):
+    elementos = sorted(
+        pavimento.elementos.all(),
+        key=lambda e: (e.categoria, e.tipo, chave_natural(e.nome), chave_natural(e.identificador)),
+    )
+
+    for elemento in elementos:
+        if formulario_edicao is not None and elemento.pk == elemento_editando_pk:
+            elemento.form_edicao = formulario_edicao
+        else:
+            elemento.form_edicao = ElementoForm(
+                instance=elemento,
+                pavimento=pavimento,
+                prefix=elemento_form_prefix(elemento),
+            )
+
+    return {
+        'pavimento': pavimento,
+        'grupos': agrupar_elementos(elementos),
+        'resumo_diametros': resumo_por_diametro(elementos),
+        'tem_elementos': bool(elementos),
+        'form': form,
+        'nomes_forma_por_tipo': form.nomes_forma_por_tipo,
+        'duplicando': duplicando,
+        'preenchido_automatico': preenchido_automatico,
+        'elemento_editando_pk': elemento_editando_pk,
+    }
 
 
 def agrupar_elementos(elementos):
@@ -143,7 +191,7 @@ def pavimento_detail(request, pk):
             elemento.pavimento = pavimento
             elemento.save()
             messages.success(request, 'Elemento adicionado com sucesso.')
-            return redirect('core:pavimento_detail', pk=pavimento.pk)
+            return redirect_pavimento_detail(pavimento)
     else:
         duplicar_pk = request.GET.get('duplicar')
         if duplicar_pk:
@@ -168,20 +216,11 @@ def pavimento_detail(request, pk):
             }, pavimento=pavimento)
         else:
             form = ElementoForm(pavimento=pavimento)
-    elementos = sorted(
-        pavimento.elementos.all(),
-        key=lambda e: (e.categoria, e.tipo, chave_natural(e.nome), chave_natural(e.identificador)),
+    return render(
+        request,
+        'core/pavimento_detail.html',
+        contexto_pavimento_detail(pavimento, form, duplicando, preenchido_automatico),
     )
-    return render(request, 'core/pavimento_detail.html', {
-        'pavimento': pavimento,
-        'grupos': agrupar_elementos(elementos),
-        'resumo_diametros': resumo_por_diametro(elementos),
-        'tem_elementos': bool(elementos),
-        'form': form,
-        'nomes_forma_por_tipo': form.nomes_forma_por_tipo,
-        'duplicando': duplicando,
-        'preenchido_automatico': preenchido_automatico,
-    })
 
 
 def pavimento_delete(request, pk):
@@ -217,7 +256,7 @@ def grupo_duplicar(request, pk):
                 request,
                 f'{total} peca(s) de "{nome}" duplicada(s) como "{nomes_texto}".'
             )
-    return redirect('core:pavimento_detail', pk=pavimento.pk)
+    return redirect_pavimento_detail(pavimento)
 
 
 def elemento_delete(request, pk, elemento_pk):
@@ -226,18 +265,32 @@ def elemento_delete(request, pk, elemento_pk):
     if request.method == 'POST':
         elemento.delete()
         messages.success(request, 'Elemento excluido.')
-    return redirect('core:pavimento_detail', pk=pavimento.pk)
+    return redirect_pavimento_detail(pavimento)
 
 
 def elemento_edit(request, pk, elemento_pk):
     pavimento = get_object_or_404(Pavimento, pk=pk)
     elemento = get_object_or_404(pavimento.elementos, pk=elemento_pk)
+    prefix = elemento_form_prefix(elemento)
     if request.method == 'POST':
-        form = ElementoForm(request.POST, instance=elemento, pavimento=pavimento)
+        post_prefix = prefix if f'{prefix}-categoria' in request.POST else None
+        form = ElementoForm(request.POST, instance=elemento, pavimento=pavimento, prefix=post_prefix)
         if form.is_valid():
             form.save()
             messages.success(request, 'Elemento atualizado com sucesso.')
-            return redirect('core:pavimento_detail', pk=pavimento.pk)
+            return redirect_pavimento_detail(pavimento, f'elemento-{elemento.pk}')
+
+        form_adicionar = ElementoForm(pavimento=pavimento)
+        return render(
+            request,
+            'core/pavimento_detail.html',
+            contexto_pavimento_detail(
+                pavimento,
+                form_adicionar,
+                formulario_edicao=form,
+                elemento_editando_pk=elemento.pk,
+            ),
+        )
     else:
         form = ElementoForm(instance=elemento, pavimento=pavimento)
     return render(request, 'core/elemento_form.html', {

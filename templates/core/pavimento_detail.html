@@ -22,35 +22,14 @@
             </div>
         {% endif %}
         {{ nomes_forma_por_tipo|json_script:"nomes-forma-data" }}
-        <form method="post" class="formulario formulario-grade">
+        <form method="post" class="formulario formulario-grade preserve-scroll" data-elemento-form>
             {% csrf_token %}
-            {% for field in form %}
-                {% if field.name == 'nome' %}
-                    <p class="campo-nome-livre">
-                        {{ field.label_tag }}
-                        {{ field }}
-                        {% if field.errors %}<span class="erro">{{ field.errors|striptags }}</span>{% endif %}
-                    </p>
-                    <p class="campo-nome-forma">
-                        <label for="id_nome_forma">Nome</label>
-                        <select id="id_nome_forma" name="nome" disabled data-current="{{ field.value|default_if_none:'' }}">
-                            <option value="">Selecione o tipo primeiro...</option>
-                        </select>
-                        {% if field.errors %}<span class="erro">{{ field.errors|striptags }}</span>{% endif %}
-                    </p>
-                {% else %}
-                    <p{% if field.name == 'identificador' or field.name == 'qtde' %} class="campo-generico"{% elif field.name == 'medida' %} class="campo-forma-apenas"{% elif field.name == 'medida_1' or field.name == 'medida_2' %} class="campo-concreto-apenas"{% elif field.name == 'comprimento' %} class="campo-comprimento"{% elif field.name == 'diametro' or field.name == 'peso_linear' %} class="campo-aco-apenas"{% endif %}>
-                        {{ field.label_tag }}
-                        {{ field }}
-                        {% if field.errors %}<span class="erro">{{ field.errors|striptags }}</span>{% endif %}
-                    </p>
-                {% endif %}
-            {% endfor %}
+            {% include 'core/_elemento_form_fields.html' with form=form %}
             <button type="submit">Adicionar</button>
         </form>
     </section>
 
-    <h3>Elementos cadastrados</h3>
+    <h3 id="elementos">Elementos cadastrados</h3>
     {% if tem_elementos %}
         {% for grupo in grupos %}
             <h4 class="titulo-grupo">{{ grupo.categoria }}</h4>
@@ -92,7 +71,7 @@
                                 </td>
                             </tr>
                             {% for elemento in grupo_nome.elementos %}
-                                <tr>
+                                <tr id="elemento-{{ elemento.pk }}" class="linha-elemento">
                                     <td>{{ elemento.nome }}</td>
                                     {% if grupo.eh_forma %}
                                         <td>{{ elemento.medida }}</td>
@@ -115,12 +94,25 @@
                                         <td>{{ elemento.peso_total }}</td>
                                     {% endif %}
                                     <td class="acoes">
-                                        <a href="{% url 'core:elemento_edit' pavimento.pk elemento.pk %}" class="botao-secundario pequeno">Editar</a>
+                                        <button type="button" class="botao-secundario pequeno botao-editar" data-edit-target="editar-{{ elemento.pk }}">Editar</button>
                                         <a href="?duplicar={{ elemento.pk }}#adicionar" class="botao-secundario pequeno">Duplicar</a>
                                         <form method="post" action="{% url 'core:elemento_delete' pavimento.pk elemento.pk %}"
+                                              class="preserve-scroll"
                                               onsubmit="return confirm('Excluir este elemento?');">
                                             {% csrf_token %}
                                             <button type="submit" class="perigo pequeno">Excluir</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                <tr id="editar-{{ elemento.pk }}" class="linha-edicao{% if elemento_editando_pk == elemento.pk %} aberta{% endif %}"{% if elemento_editando_pk != elemento.pk %} hidden{% endif %}>
+                                    <td colspan="{% if grupo.eh_aco %}9{% elif grupo.eh_forma %}5{% else %}6{% endif %}">
+                                        <form method="post" action="{% url 'core:elemento_edit' pavimento.pk elemento.pk %}" class="formulario formulario-grade formulario-edicao preserve-scroll" data-elemento-form>
+                                            {% csrf_token %}
+                                            {% include 'core/_elemento_form_fields.html' with form=elemento.form_edicao %}
+                                            <div class="acoes-edicao">
+                                                <button type="submit">Salvar</button>
+                                                <button type="button" class="botao-secundario" data-cancel-edit="editar-{{ elemento.pk }}">Cancelar</button>
+                                            </div>
                                         </form>
                                     </td>
                                 </tr>
@@ -152,7 +144,7 @@
                                     <td>{{ grupo_nome.volume_total|floatformat:3 }}</td>
                                 {% endif %}
                                 <td class="acoes">
-                                    <form method="post" action="{% url 'core:grupo_duplicar' pavimento.pk %}" class="form-duplicar-grupo">
+                                    <form method="post" action="{% url 'core:grupo_duplicar' pavimento.pk %}" class="form-duplicar-grupo preserve-scroll">
                                         {% csrf_token %}
                                         <input type="hidden" name="categoria" value="{{ grupo_nome.elementos.0.categoria }}">
                                         <input type="hidden" name="tipo" value="{{ grupo_nome.elementos.0.tipo }}">
@@ -259,22 +251,13 @@
             '25.0': 3.853, '32.0': 6.313, '40.0': 9.865
         };
         const nomesFormaPorTipo = JSON.parse(document.getElementById('nomes-forma-data').textContent);
-        const campoCategoria = document.getElementById('id_categoria');
-        const campoTipo = document.getElementById('id_tipo');
-        const campoNomeLivreGrupo = document.querySelector('.campo-nome-livre');
-        const campoNomeLivre = document.getElementById('id_nome');
-        const campoNomeFormaGrupo = document.querySelector('.campo-nome-forma');
-        const campoNomeForma = document.getElementById('id_nome_forma');
-        const camposGenericos = document.querySelectorAll('.campo-generico');
-        const camposFormaApenas = document.querySelectorAll('.campo-forma-apenas');
-        const camposConcretoApenas = document.querySelectorAll('.campo-concreto-apenas');
-        const camposAcoApenas = document.querySelectorAll('.campo-aco-apenas');
-        const camposComprimento = document.querySelectorAll('.campo-comprimento');
-        const campoDiametro = document.getElementById('id_diametro');
-        const campoPesoLinear = document.getElementById('id_peso_linear');
+        const chaveRolagem = 'cadastro-civil-scroll:' + window.location.pathname;
 
         function alternarGrupo(campos, exibir) {
             campos.forEach(function (grupoCampo) {
+                if (!grupoCampo) {
+                    return;
+                }
                 grupoCampo.hidden = !exibir;
                 grupoCampo.querySelectorAll('input, select').forEach(function (campo) {
                     campo.disabled = !exibir;
@@ -282,7 +265,25 @@
             });
         }
 
-        function preencherNomesForma() {
+        function prepararFormularioElemento(formulario) {
+            const campoCategoria = formulario.querySelector('select[name$="categoria"]');
+            const campoTipo = formulario.querySelector('select[name$="tipo"]');
+            const campoNomeLivreGrupo = formulario.querySelector('.campo-nome-livre');
+            const campoNomeLivre = campoNomeLivreGrupo ? campoNomeLivreGrupo.querySelector('input') : null;
+            const campoNomeFormaGrupo = formulario.querySelector('.campo-nome-forma');
+            const campoNomeForma = campoNomeFormaGrupo ? campoNomeFormaGrupo.querySelector('select') : null;
+            const camposGenericos = formulario.querySelectorAll('.campo-generico');
+            const camposFormaApenas = formulario.querySelectorAll('.campo-forma-apenas');
+            const camposConcretoApenas = formulario.querySelectorAll('.campo-concreto-apenas');
+            const camposAcoApenas = formulario.querySelectorAll('.campo-aco-apenas');
+            const camposComprimento = formulario.querySelectorAll('.campo-comprimento');
+            const campoDiametro = formulario.querySelector('select[name$="diametro"]');
+            const campoPesoLinear = formulario.querySelector('input[name$="peso_linear"]');
+
+            function preencherNomesForma() {
+                if (!campoNomeForma || !campoNomeLivre) {
+                    return;
+                }
             const tipo = campoTipo ? campoTipo.value : '';
             const valorAtual = campoNomeForma.dataset.current || campoNomeLivre.value;
             const nomes = nomesFormaPorTipo[tipo] || [];
@@ -304,7 +305,7 @@
             });
         }
 
-        function atualizarCamposPorCategoria() {
+            function atualizarCamposPorCategoria() {
             const categoria = campoCategoria ? campoCategoria.value : 'aco';
             const ehForma = categoria === 'forma';
             const ehConcreto = categoria === 'concreto';
@@ -318,19 +319,14 @@
             preencherNomesForma();
         }
 
-        {% if duplicando %}
-        if (campoNomeLivre) {
-            campoNomeLivre.focus();
-            campoNomeLivre.select();
-        }
-        {% endif %}
-
         if (campoCategoria) {
             campoCategoria.addEventListener('change', atualizarCamposPorCategoria);
         }
         if (campoTipo) {
             campoTipo.addEventListener('change', function () {
-                campoNomeForma.dataset.current = '';
+                if (campoNomeForma) {
+                    campoNomeForma.dataset.current = '';
+                }
                 preencherNomesForma();
             });
         }
@@ -342,6 +338,71 @@
                 if (PESOS_LINEARES[chave] !== undefined) {
                     campoPesoLinear.value = PESOS_LINEARES[chave];
                 }
+            });
+        }
+        }
+
+        function guardarRolagem() {
+            sessionStorage.setItem(chaveRolagem, String(window.scrollY));
+        }
+
+        document.querySelectorAll('[data-elemento-form]').forEach(prepararFormularioElemento);
+
+        {% if duplicando %}
+        const campoNomeLivreAdicionar = document.querySelector('#adicionar .campo-nome-livre input');
+        if (campoNomeLivreAdicionar) {
+            campoNomeLivreAdicionar.focus();
+            campoNomeLivreAdicionar.select();
+        }
+        {% endif %}
+
+        document.querySelectorAll('.botao-editar').forEach(function (botao) {
+            botao.addEventListener('click', function () {
+                const linha = document.getElementById(botao.dataset.editTarget);
+                if (!linha) {
+                    return;
+                }
+                const vaiAbrir = linha.hidden;
+                document.querySelectorAll('.linha-edicao').forEach(function (outraLinha) {
+                    if (outraLinha !== linha) {
+                        outraLinha.hidden = true;
+                        outraLinha.classList.remove('aberta');
+                    }
+                });
+                linha.hidden = !vaiAbrir;
+                linha.classList.toggle('aberta', vaiAbrir);
+                if (vaiAbrir) {
+                    const primeiroCampo = linha.querySelector('input:not([disabled]), select:not([disabled])');
+                    if (primeiroCampo) {
+                        primeiroCampo.focus({preventScroll: true});
+                    }
+                }
+            });
+        });
+
+        document.querySelectorAll('[data-cancel-edit]').forEach(function (botao) {
+            botao.addEventListener('click', function () {
+                const linha = document.getElementById(botao.dataset.cancelEdit);
+                if (linha) {
+                    linha.hidden = true;
+                    linha.classList.remove('aberta');
+                }
+            });
+        });
+
+        document.querySelectorAll('form.preserve-scroll').forEach(function (formulario) {
+            formulario.addEventListener('submit', guardarRolagem);
+        });
+
+        document.querySelectorAll('a[href*="duplicar"]').forEach(function (link) {
+            link.addEventListener('click', guardarRolagem);
+        });
+
+        const rolagemSalva = sessionStorage.getItem(chaveRolagem);
+        if (rolagemSalva !== null) {
+            sessionStorage.removeItem(chaveRolagem);
+            requestAnimationFrame(function () {
+                window.scrollTo(0, Number(rolagemSalva));
             });
         }
     </script>
